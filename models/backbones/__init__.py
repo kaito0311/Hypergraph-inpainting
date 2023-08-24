@@ -1,0 +1,1 @@
+from .iresnet import iresnet160_wo_fc, iresnet160_gate

@@ -159,10 +159,15 @@ class CoarseModel(torch.nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         skip_layer = []
+        print("x input shape: ", x.shape)
         for i in range(self.downsample):
             x = self.enc_convs[i](x)
+            print("downsample x shape: ", x.shape)
             if i != self.downsample - 1:
                 skip_layer.append(x)
+        
+        exit()
+        
         for i in range(3):
             x = self.mid_convs[i](x)
         for i in range(self.downsample):

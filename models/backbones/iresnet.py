@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+from models.gc_layer import GatedConvolution, GatedDeConvolution
+
 
 __all__ = ['iresnet18', 'iresnet34', 'iresnet50', 'iresnet100', 'iresnet124', 'iresnet200']
 
@@ -255,6 +257,138 @@ class IResNet(nn.Module):
         return x, x_56, x_28, x_14, x_7
 
 
+class ResNetComponent(IResNet):
+    def __init__(self, block, layers, dropout=0, num_features=512, zero_init_residual=False,
+                groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False) -> None:
+        super(IResNet, self).__init__()
+        self.fp16 = fp16
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError("replace_stride_with_dilation should be None "
+                            "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(self.inplanes, eps=1e-05)
+        self.prelu = nn.PReLU(self.inplanes)
+        self.layer1 = self._make_layer(block, 64, layers[0], stride=2)
+        self.layer2 = self._make_layer(block,
+                                    128,
+                                    layers[1],
+                                    stride=2,
+                                    dilate=replace_stride_with_dilation[0])
+        self.layer3 = self._make_layer(block,
+                                    256,
+                                    layers[2],
+                                    stride=2,
+                                    dilate=replace_stride_with_dilation[1])
+        self.layer4 = self._make_layer(block,
+                                    512,
+                                    layers[3],
+                                    stride=2,
+                                    dilate=replace_stride_with_dilation[2])
+        self.bn2 = nn.BatchNorm2d(512 * block.expansion, eps=1e-05,)
+    def forward(self, x):
+        pass 
+
+
+class GatedBlockResnet(torch.nn.Module):
+    '''
+    Input forward func: Gateconv for generator, input is downsample feature map that produced by Resnet or sth
+    '''
+    def __init__(self,
+                in_channels = 64,
+                out_channels = 128,
+                n_conv = 2,
+                dilation = 1,
+                activation = 'LeakyReLU', 
+                downsample = False,
+                ):
+        super().__init__() 
+        self.in_channels = in_channels 
+        self.out_channels = out_channels
+        self.n_conv = n_conv
+        self.need_downsample = downsample 
+
+        self.rest_conv = nn.ModuleList()
+
+        if downsample : 
+            self.gate_downsample = GatedConvolution(in_channels=in_channels,
+                                            out_channels=out_channels,
+                                            kernel_size=3,
+                                            stride=2,
+                                            dilation=1,
+                                            padding='same',
+                                            activation=activation)
+        else: 
+            self.gate_downsample = torch.nn.Identity() 
+
+
+        for i in range(n_conv):
+            self.rest_conv.append(
+                GatedConvolution(in_channels=out_channels,
+                                out_channels=out_channels,
+                                kernel_size=3,
+                                stride=1,
+                                dilation=dilation,
+                                padding='same',
+                                activation=activation)
+            )
+    
+    def forward(self, feature_map_down_resnet): 
+        '''
+        '''
+        if self.need_downsample: 
+            x = self.gate_downsample(x) 
+        for i in range(self.n_conv):
+            x = self.rest_conv[i](feature_map_down_resnet) 
+        return x 
+
+
+
+
+class IResNetGateBlock(nn.Module): 
+    fc_scale = 7 * 7
+    
+    def __init__(self,
+                 block, layers, dropout=0, num_features=512, zero_init_residual=False,
+                 groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False):
+        super(IResNetGateBlock, self).__init__()
+        self.fp16 = fp16
+        self.resnet_component = ResNetComponent(block, layers, dropout, num_features, zero_init_residual,
+                 groups, width_per_group, replace_stride_with_dilation, fp16)
+        
+        self.gate_block
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.normal_(m.weight, 0, 0.1)
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, IBasicBlock):
+                    nn.init.constant_(m.bn2.weight, 0)
+    
+    def forward(self, x):
+        with torch.cuda.amp.autocast(self.fp16):
+            x = self.resnet_component.conv1(x)
+            x = self.resnet_component.bn1(x)
+            x = self.resnet_component.prelu(x)
+            x_56 = self.resnet_component.layer1(x)
+            x_28 = self.resnet_component.layer2(x_56)
+            x_14 = self.resnet_component.layer3(x_28)
+            x_7 = self.resnet_component.layer4(x_14)
+            x = self.resnet_component.bn2(x_7)
+            x = torch.flatten(x, 1)
+        return x, x_56, x_28, x_14, x_7
+
+
 class IResNet_wo_fc(IResNet): 
     fc_scale = 7 * 7
     def __init__(self,
@@ -359,4 +493,8 @@ def iresnet200(pretrained=False, progress=True, **kwargs):
 
 def iresnet160_wo_fc(pretrained=False, progress=True, **kwargs):
     model = IResNet_wo_fc(IBasicBlock, [3, 24, 49, 3], **kwargs).cuda()
+    return model 
+
+def iresnet160_gate(**kwargs):
+    model = IResNetGateBlock(IBasicBlock, [3, 24, 49, 3], **kwargs).cuda()
     return model 
