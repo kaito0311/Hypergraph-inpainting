@@ -12,8 +12,19 @@ from collections import OrderedDict
 
 '''==== TEST LOAD ENCODER RESNET 160 COMBINE GATE BLOCK === ''' 
 # === convert state dict model and run check ===  
+iresnet160_gate_model = iresnet160_gate() 
+dummy_input = torch.randn(1, 3, 112, 112).to("cuda")
+outputs = iresnet160_gate_model(dummy_input)
+for out in outputs: 
+    print(out.shape)
 
-
+iresnet160_model = iresnet160()
+iresnet160_model.eval()
+outputs2 = iresnet160_model(dummy_input)
+for out in outputs2: 
+    print(out.shape)
+  
+# print(iresnet160_gate_model)
 
 # === convert state dict model and run check ===  
 # model = iresnet160_gate() 

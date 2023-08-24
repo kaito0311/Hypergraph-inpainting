@@ -354,14 +354,30 @@ class IResNetGateBlock(nn.Module):
     fc_scale = 7 * 7
     
     def __init__(self,
-                 block, layers, dropout=0, num_features=512, zero_init_residual=False,
+                 block, layers, gate_channels, dropout=0, num_features=512, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False):
         super(IResNetGateBlock, self).__init__()
         self.fp16 = fp16
         self.resnet_component = ResNetComponent(block, layers, dropout, num_features, zero_init_residual,
                  groups, width_per_group, replace_stride_with_dilation, fp16)
         
-        self.gate_block
+
+        in_channels = gate_channels
+
+        self.gate_blocks = nn.ModuleList() 
+        # for each layer in resnet component, have a gate block respectively 
+
+        for i in range(4): # because Resnet 160 have 4 layer 
+            self.gate_blocks.append(
+                GatedBlockResnet(
+                    in_channels= in_channels, 
+                    out_channels= in_channels, # just gen 
+                    n_conv= 2, 
+                    dilation= 1, 
+                    downsample= False
+                )
+            )
+            in_channels = 2 * in_channels 
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -381,9 +397,13 @@ class IResNetGateBlock(nn.Module):
             x = self.resnet_component.bn1(x)
             x = self.resnet_component.prelu(x)
             x_56 = self.resnet_component.layer1(x)
+            x_56 = self.gate_blocks[0](x_56)
             x_28 = self.resnet_component.layer2(x_56)
+            x_28 = self.gate_blocks[1](x_28)
             x_14 = self.resnet_component.layer3(x_28)
+            x_14 = self.gate_blocks[2](x_14)
             x_7 = self.resnet_component.layer4(x_14)
+            x_7 = self.gate_blocks[3](x_7)
             x = self.resnet_component.bn2(x_7)
             x = torch.flatten(x, 1)
         return x, x_56, x_28, x_14, x_7
@@ -496,5 +516,5 @@ def iresnet160_wo_fc(pretrained=False, progress=True, **kwargs):
     return model 
 
 def iresnet160_gate(**kwargs):
-    model = IResNetGateBlock(IBasicBlock, [3, 24, 49, 3], **kwargs).cuda()
+    model = IResNetGateBlock(IBasicBlock, [3, 24, 49, 3],gate_channels= 64, **kwargs).cuda()
     return model 
