@@ -91,7 +91,7 @@ class CoarseModel(torch.nn.Module):
         super().__init__()
         self.downsample = downsample
 
-        self.conv1 = GatedConvolution (in_channels=4, out_channels=channels, kernel_size=7, stride=1, dilation=1, padding='same', activation='LeakyReLU') # RGB + Mask
+        self.conv1 = GatedConvolution(in_channels=4, out_channels=channels, kernel_size=7, stride=1, dilation=1, padding='same', activation='LeakyReLU') # RGB + Mask
 
         # Encoder For Coarse Network
         self.enc_convs = nn.ModuleList()
@@ -313,12 +313,17 @@ class HyperGraphModel(torch.nn.Module):
         self.refine_model = RefineModel(input_size = input_size,
                                         downsample = refine_downsample,
                                         channels = channels)
-
+        print("sum parameter coarse_model: ", sum([p.numel() for p in self.coarse_model.parameters()]))
+        print(self.coarse_model)
     # Generator Network
     def forward(self, img, mask):
         # mask: 0 - original image, 1.0 - masked
         inp_coarse = torch.cat([img, mask], dim = 1)
+        print("inp_coarse shape: ", inp_coarse.shape)
+
         out_coarse = self.coarse_model(inp_coarse)
+        print("out_coarse shape: ", out_coarse.shape)
+        exit()
         out_coarse = torch.clamp(out_coarse, min = 0.0, max = 1.0)
         b, _, h, w = mask.size()
         mask_rp = mask.repeat(1, 3, 1, 1)

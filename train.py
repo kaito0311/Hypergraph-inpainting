@@ -247,7 +247,7 @@ if __name__ == '__main__':
     epoches = 1000
     num_workers = 2
     train_gt_folder = ''
-    val_gt_folder = '/home/damnguyen/dataset/StyleGAN40k_valid_256'
+    val_gt_folder = './data/'
     training_dir = 'experiments'
 
     VALID_LOSS_WEIGHT = 0.2

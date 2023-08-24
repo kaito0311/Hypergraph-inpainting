@@ -255,6 +255,70 @@ class IResNet(nn.Module):
         return x, x_56, x_28, x_14, x_7
 
 
+class IResNet_wo_fc(IResNet): 
+    fc_scale = 7 * 7
+    def __init__(self,
+                 block, layers, dropout=0, num_features=512, zero_init_residual=False,
+                 groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False):
+        super(IResNet, self).__init__()
+        self.fp16 = fp16
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError("replace_stride_with_dilation should be None "
+                             "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(self.inplanes, eps=1e-05)
+        self.prelu = nn.PReLU(self.inplanes)
+        self.layer1 = self._make_layer(block, 64, layers[0], stride=2)
+        self.layer2 = self._make_layer(block,
+                                       128,
+                                       layers[1],
+                                       stride=2,
+                                       dilate=replace_stride_with_dilation[0])
+        self.layer3 = self._make_layer(block,
+                                       256,
+                                       layers[2],
+                                       stride=2,
+                                       dilate=replace_stride_with_dilation[1])
+        self.layer4 = self._make_layer(block,
+                                       512,
+                                       layers[3],
+                                       stride=2,
+                                       dilate=replace_stride_with_dilation[2])
+        self.bn2 = nn.BatchNorm2d(512 * block.expansion, eps=1e-05,)
+        
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.normal_(m.weight, 0, 0.1)
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, IBasicBlock):
+                    nn.init.constant_(m.bn2.weight, 0)
+    
+    def forward(self, x):
+        with torch.cuda.amp.autocast(self.fp16):
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.prelu(x)
+            x_56 = self.layer1(x)
+            x_28 = self.layer2(x_56)
+            x_14 = self.layer3(x_28)
+            x_7 = self.layer4(x_14)
+            x = self.bn2(x_7)
+            x = torch.flatten(x, 1)
+        return x, x_56, x_28, x_14, x_7
+
+
 def _iresnet(arch, block, layers, pretrained, progress, **kwargs):
     model = IResNet(block, layers, **kwargs).cuda()
     if pretrained:
@@ -292,3 +356,7 @@ def iresnet160(pretrained=False, progress=True, **kwargs):
 def iresnet200(pretrained=False, progress=True, **kwargs):
     return _iresnet('iresnet200', IBasicBlock, [6, 26, 60, 6], pretrained,
                     progress, **kwargs)
+
+def iresnet160_wo_fc(pretrained=False, progress=True, **kwargs):
+    model = IResNet_wo_fc(IBasicBlock, [3, 24, 49, 3], **kwargs).cuda()
+    return model 
