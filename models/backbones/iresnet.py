@@ -363,7 +363,8 @@ class IResNetGateBlock(nn.Module):
         
 
         in_channels = gate_channels
-
+        
+        self.conv1 = GatedConvolution(in_channels=4, out_channels=in_channels, kernel_size=7, stride=1, dilation=1, padding='same', activation='LeakyReLU') # RGB + Mask
         self.gate_blocks = nn.ModuleList() 
         # for each layer in resnet component, have a gate block respectively 
 
@@ -393,7 +394,7 @@ class IResNetGateBlock(nn.Module):
     
     def forward(self, x):
         with torch.cuda.amp.autocast(self.fp16):
-            x = self.resnet_component.conv1(x)
+            x = self.conv1(x)
             x = self.resnet_component.bn1(x)
             x = self.resnet_component.prelu(x)
             x_56 = self.resnet_component.layer1(x)
@@ -404,7 +405,7 @@ class IResNetGateBlock(nn.Module):
             x_14 = self.gate_blocks[2](x_14)
             x_7 = self.resnet_component.layer4(x_14)
             x_7 = self.gate_blocks[3](x_7)
-            x = self.resnet_component.bn2(x_7)
+            x = self.resnet_component.bn2(x_7) # TM-FIXME : need before x_7? 
             x = torch.flatten(x, 1)
         return x, x_56, x_28, x_14, x_7
 

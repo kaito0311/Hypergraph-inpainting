@@ -166,7 +166,7 @@ class CoarseModel(torch.nn.Module):
             if i != self.downsample - 1:
                 skip_layer.append(x)
         
-        exit()
+        # exit()
         
         for i in range(3):
             x = self.mid_convs[i](x)
@@ -174,7 +174,10 @@ class CoarseModel(torch.nn.Module):
             if i > 0:
                 skip_layer_idx = self.downsample - 1 - i
                 x = torch.cat([x, skip_layer[skip_layer_idx]], dim = 1)
+            print("x decode input shape ", x.shape)
             x = self.dec_convs[i](x)
+        print("final after decode x.shape ", x.shape)
+        exit()
         x = self.last_dec(x)
         x = self.coarse_out(x)
         return x
