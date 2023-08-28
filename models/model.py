@@ -159,10 +159,10 @@ class CoarseModel(torch.nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         skip_layer = []
-        print("x input shape: ", x.shape)
+        # print("x input shape: ", x.shape)
         for i in range(self.downsample):
             x = self.enc_convs[i](x)
-            print("downsample x shape: ", x.shape)
+            # print("downsample x shape: ", x.shape)
             if i != self.downsample - 1:
                 skip_layer.append(x)
         
@@ -174,9 +174,9 @@ class CoarseModel(torch.nn.Module):
             if i > 0:
                 skip_layer_idx = self.downsample - 1 - i
                 x = torch.cat([x, skip_layer[skip_layer_idx]], dim = 1)
-            print("x decode input shape ", x.shape)
+            # print("x decode input shape ", x.shape)
             x = self.dec_convs[i](x)
-        print("final after decode x.shape ", x.shape)
+        # print("final after decode x.shape ", x.shape)
         x = self.last_dec(x)
         x = self.coarse_out(x)
         return x
@@ -320,17 +320,12 @@ class HyperGraphModel(torch.nn.Module):
         self.refine_model = RefineModel(input_size = input_size,
                                         downsample = refine_downsample,
                                         channels = channels)
-        print("sum parameter coarse_model: ", sum([p.numel() for p in self.coarse_model.parameters()]))
-        print(self.coarse_model)
+
     # Generator Network
     def forward(self, img, mask):
         # mask: 0 - original image, 1.0 - masked
         inp_coarse = torch.cat([img, mask], dim = 1)
-        print("inp_coarse shape: ", inp_coarse.shape)
-
         out_coarse = self.coarse_model(inp_coarse)
-        print("out_coarse shape: ", out_coarse.shape)
-
         out_coarse = torch.clamp(out_coarse, min = 0.0, max = 1.0)
         b, _, h, w = mask.size()
         mask_rp = mask.repeat(1, 3, 1, 1)
@@ -338,8 +333,6 @@ class HyperGraphModel(torch.nn.Module):
         inp_refine = torch.cat([inp_refine, mask], dim = 1)
         out_refine = self.refine_model(inp_refine)
         out_refine = torch.clamp(out_refine, min = 0.0, max = 1.0)
-        print("out_refine shape ", out_refine.shape)
-        exit()
         return out_coarse, out_refine
 
 class Discriminator(torch.nn.Module):

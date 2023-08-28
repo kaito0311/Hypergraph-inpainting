@@ -94,12 +94,9 @@ class CoarseModelResnet(torch.nn.Module):
         x_scale = list(x_scale)
 
         x_return = x_scale[-1]
-        for i in x_scale: 
-            print("x encode shape ", i.shape)
         for i in range(4, self.downsample):
             # print(self.env_convs[i-3])
             x_return = self.env_convs[i - 3](x_return)
-            print("x encode shape ", x_return.shape)
             x_scale.append(x_return)
         
         # x_scale= skip_layer
@@ -110,19 +107,12 @@ class CoarseModelResnet(torch.nn.Module):
         for i in range(self.downsample):
             if i > 0:
                 skip_layer_idx = self.downsample - 1 - i
-                print(skip_layer_idx)
                 x_return = torch.cat([x_return, skip_layer[skip_layer_idx]], dim = 1)
-            print("x decode shape ", x_return.shape)
             x_return = self.dec_convs[i](x_return)
-        
-        print("x_return.shape ", x_return.shape)
 
-        x_return = self.last_dec(x_return)
-        print("last_dec shape ", x_return.shape)
-        
+        x_return = self.last_dec(x_return)        
         x_return = self.coarse_out(x_return)
 
-        
         return x_return
              
 
@@ -133,15 +123,12 @@ class HyperGraphModelCustom(torch.nn.Module):
 
         self.coarse_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
         self.refine_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
-
     
     def forward(self, img, mask): 
         # mask: 0 - original image, 1.0 - masked
         inp_coarse = torch.cat([img, mask], dim = 1)
-        print("inp_coarse shape: ", inp_coarse.shape)
 
         out_coarse = self.coarse_model(inp_coarse)
-        print("out_coarse shape: ", out_coarse.shape)
         out_coarse = torch.clamp(out_coarse, min = 0.0, max = 1.0)
         b, _, h, w = mask.size()
         mask_rp = mask.repeat(1, 3, 1, 1)
@@ -149,5 +136,4 @@ class HyperGraphModelCustom(torch.nn.Module):
         inp_refine = torch.cat([inp_refine, mask], dim = 1)
         out_refine = self.refine_model(inp_refine)
         out_refine = torch.clamp(out_refine, min = 0.0, max = 1.0)
-        print("out_refine shape ", out_refine.shape)
         return out_coarse, out_refine
