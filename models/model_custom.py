@@ -123,12 +123,31 @@ class CoarseModelResnet(torch.nn.Module):
         x_return = self.coarse_out(x_return)
 
         
-        return x_scale 
+        return x_return
              
 
             
+class HyperGraphModelCustom(torch.nn.Module):
+    def __init__(self,input_size=256, coarse_downsample = 5, refine_downsample= 6, channels = 64, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
-        
-
+        self.coarse_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
+        self.refine_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
 
     
+    def forward(self, img, mask): 
+        # mask: 0 - original image, 1.0 - masked
+        inp_coarse = torch.cat([img, mask], dim = 1)
+        print("inp_coarse shape: ", inp_coarse.shape)
+
+        out_coarse = self.coarse_model(inp_coarse)
+        print("out_coarse shape: ", out_coarse.shape)
+        out_coarse = torch.clamp(out_coarse, min = 0.0, max = 1.0)
+        b, _, h, w = mask.size()
+        mask_rp = mask.repeat(1, 3, 1, 1)
+        inp_refine = out_coarse * mask_rp + img * (1.0 - mask_rp)
+        inp_refine = torch.cat([inp_refine, mask], dim = 1)
+        out_refine = self.refine_model(inp_refine)
+        out_refine = torch.clamp(out_refine, min = 0.0, max = 1.0)
+        print("out_refine shape ", out_refine.shape)
+        return out_coarse, out_refine

@@ -1,10 +1,30 @@
 from utils import *
-from models.model_custom import CoarseModelResnet
+from models.model_custom import CoarseModelResnet, HyperGraphModelCustom
 from models.backbones.iresnet import iresnet160, iresnet160_wo_fc, iresnet160_gate
 import torch 
 
 from collections import OrderedDict
 
+'''=== TEST OUTPUT HYPERGRAPHMODELCUSTOM MODEL ==='''
+hyper_graph_custom = HyperGraphModelCustom(
+    input_size= 256, 
+    coarse_downsample= 5, 
+    refine_downsample= 6, 
+    channels= 64
+)
+
+dummy_image, dummy_mask = torch.randn(1, 3, 256, 256).to("cuda"), torch.randn(1, 1, 256, 256).to("cuda") 
+hyper_graph_custom.to('cuda')
+
+hyper_graph_custom(dummy_image, dummy_mask)
+
+
+'''=== TEST OUTPUT ENCODER CUSTOM COARSE MODEL ==='''
+# coarse_model_resnet = CoarseModelResnet(downsample= 5, channels= 64)
+# coarse_model_resnet.to("cuda")
+# dummy_input = torch.randn(1, 4, 256, 256).to("cuda")
+
+# outputs = coarse_model_resnet(dummy_input)
 
 
 ''' ==== TEST OUTPUT ENCODER HYPERGRAPH ORIGINAL === ''' 
@@ -19,11 +39,6 @@ from collections import OrderedDict
 #     print(out.shape)
 # print(iresnet160_gate_model)
 
-coarse_model_resnet = CoarseModelResnet(downsample= 5, channels= 64)
-coarse_model_resnet.to("cuda")
-dummy_input = torch.randn(1, 4, 256, 256).to("cuda")
-
-outputs = coarse_model_resnet(dummy_input)
 # print(coarse_model_resnet)
 
 # iresnet160_model = iresnet160()

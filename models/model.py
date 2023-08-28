@@ -177,7 +177,6 @@ class CoarseModel(torch.nn.Module):
             print("x decode input shape ", x.shape)
             x = self.dec_convs[i](x)
         print("final after decode x.shape ", x.shape)
-        exit()
         x = self.last_dec(x)
         x = self.coarse_out(x)
         return x
@@ -331,7 +330,7 @@ class HyperGraphModel(torch.nn.Module):
 
         out_coarse = self.coarse_model(inp_coarse)
         print("out_coarse shape: ", out_coarse.shape)
-        exit()
+
         out_coarse = torch.clamp(out_coarse, min = 0.0, max = 1.0)
         b, _, h, w = mask.size()
         mask_rp = mask.repeat(1, 3, 1, 1)
@@ -339,6 +338,8 @@ class HyperGraphModel(torch.nn.Module):
         inp_refine = torch.cat([inp_refine, mask], dim = 1)
         out_refine = self.refine_model(inp_refine)
         out_refine = torch.clamp(out_refine, min = 0.0, max = 1.0)
+        print("out_refine shape ", out_refine.shape)
+        exit()
         return out_coarse, out_refine
 
 class Discriminator(torch.nn.Module):
