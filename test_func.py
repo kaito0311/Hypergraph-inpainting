@@ -6,18 +6,50 @@ import torch
 from collections import OrderedDict
 
 '''=== CREATE CHECKPOINT WITH PRETRAINED IRESNET ==='''
-hyper_graph_custom = HyperGraphModelCustom(
-    input_size= 256, 
-    coarse_downsample= 4, 
-    refine_downsample= 5, 
-    channels= 64
-)
-hyper_graph_custom.eval()
+# hyper_graph_custom = HyperGraphModelCustom(
+#     input_size= 256, 
+#     coarse_downsample= 4, 
+#     refine_downsample= 5, 
+#     channels= 64
+# )
+# hyper_graph_custom.eval()
 
-hyper_graph_custom.load_state_dict(torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt"))
+# hyper_graph_custom.load_state_dict(torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt"))
 
 
+# import torch
+# list_key = [key[:max(len("refine_model.env_convs.0.resnet_component"), len(key))] for key in state_dict_hyper.keys()]
+# list_key = set(list_key)
+# for key in list_key: 
+#     print(key)
+# state_dict_hyper = torch.load("experiments/ckpt/ckpt_60.pt")
+# state_dict_hyper_2 = torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt")
 
+# state_dict_resnet = torch.load("ckpt/r160_imintv4_statedict.pth")
+# for key in state_dict_resnet.keys(): 
+#     new_key = "refine_model.env_convs.0.resnet_component." + key 
+#     if new_key not in state_dict_hyper.keys():
+#         print(new_key)
+#     else:
+#         assert torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key]) == 0, torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key])
+#         assert torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0, (torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]))
+
+#     new_key = "coarse_model.env_convs.0.resnet_component." + key 
+#     if new_key not in state_dict_hyper.keys():
+#         print(new_key)
+#     else: 
+#         assert  torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0 
+
+pretrained = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
+model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64)
+model_gen.eval() 
+# model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
+# for name, param in model_gen.coarse_model.env_convs[0].resnet_component.named_parameters():
+#     print(name)
+#     if param.requires_grad:
+#         print("Backbone is not frozen!")
+#         break
+model_gen.coarse_model.iresnet160_gate.resnet_component.requires_grad_(False)
 '''=== TEST OUTPUT HYPERGRAPHMODELCUSTOM MODEL ==='''
 # hyper_graph_custom = HyperGraphModelCustom(
 #     input_size= 256, 

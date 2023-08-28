@@ -88,7 +88,10 @@ def eval(step):
     counter = 0
     vis_folder = os.path.join(training_dir, "visualize", str(step))
     os.makedirs(vis_folder, exist_ok = True)
-    ckpt_folder = os.path.join
+    ckpt_folder = os.path.join(training_dir, "ckpt")
+    os.makedirs(ckpt_folder, exist_ok= True)
+    torch.save(model_gen.state_dict(), os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt") )
+
     for i, batch in enumerate(val_loader):
         inputs, masks, targets = batch
         inputs  = inputs.to('cuda')
@@ -119,8 +122,6 @@ def eval(step):
 def train():
     step = 0
     for epoch in range (0, epoches) :
-       
-        os.makedirs(os.path.join (training_dir, f"EPOCH{epoch}"), exist_ok = True)
 
         avg_total_loss = 0
         avg_valid_l1_loss = 0
@@ -135,8 +136,8 @@ def train():
         print ("EPOCH : " + str (epoch))
         
         for i, batch in enumerate(train_loader):
-            model_gen.coarse_model.iresnet160_gate.resnet_component.requires_grad_(False)
-            model_gen.refine_model.iresnet160_gate.resnet_component.requires_grad_(False)
+            model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
+            model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
             if len(batch[0]) != batch_size:
                 print('[WARNING] Skipped batch {} due to invalid number/batch_size:'.format(i), len(batch[0]), batch_size)
                 continue
@@ -156,7 +157,11 @@ def train():
             inputs  = inputs.to('cuda')
             masks   = masks.to('cuda')
             targets = targets.to('cuda')
+            for p in model_gen.coarse_model.iresnet160_gate.resnet_component.parameters():
+                assert p.requires_grad == False
             prediction_coarse, prediction_refine = model_gen(inputs, masks)
+            for p in model_gen.coarse_model.iresnet160_gate.resnet_component.parameters():
+                assert p.requires_grad == False
             # prediction_coarse = torch.clamp(prediction_coarse, 0.0, 1.0)
             # prediction_refine = torch.clamp(prediction_refine, 0.0, 1.0)
             disc_generated_output = model_disc(prediction_refine, masks)
@@ -253,6 +258,7 @@ if __name__ == '__main__':
     train_gt_folder = ''
     val_gt_folder = './data/'
     training_dir = 'experiments'
+    pretrained = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
 
     VALID_LOSS_WEIGHT = 0.2
     HOLE_LOSS_WEIGHT = 1.0
@@ -267,9 +273,14 @@ if __name__ == '__main__':
     # Define model 
     model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64)
     model_disc = Discriminator(input_size = 256, discriminator_downsample = 6, channels = 64)
+
+    if pretrained is not None: 
+        model_gen.load_state_dict(torch.load(pretrained))
+        print("Loaded pretrained!!!")
+    
     model_gen.train()
-    model_gen.coarse_model.iresnet160_gate.resnet_component.requires_grad_(False)
-    model_gen.refine_model.iresnet160_gate.resnet_component.requires_grad_(False)
+    model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
+    model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
     # model_disc = VGGStyleDiscriminator(num_in_ch = 3, num_feat = 16)
     model_gen.to('cuda')
     model_disc.to('cuda')

@@ -1,1 +1,4 @@
 mlflow
+opencv-python
+torch
+numpy 

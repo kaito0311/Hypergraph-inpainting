@@ -16,13 +16,13 @@ class CoarseModelResnet(torch.nn.Module):
         assert downsample >= 4, 'Resnet have 4 downsample layer'
 
         # Encoder for Coarse Netowork 
-        self.iresnet160_gate = iresnet160_gate()
+        # self.iresnet160_gate = iresnet160_gate()
         # TM-TODO: Add load pretrained 
         self.env_convs = nn.ModuleList() 
 
         in_channels = channels 
 
-        self.env_convs.append(self.iresnet160_gate)
+        self.env_convs.append(iresnet160_gate())
         in_channels = in_channels * 8
         for i in range(4, downsample):
             self.env_convs.append(

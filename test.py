@@ -13,3 +13,4 @@ if __name__ == '__main__':
     out_disc = model_disc(x, y)
     print(model_disc)
     print(out_disc.shape)
+    
