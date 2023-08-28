@@ -5,19 +5,34 @@ import torch
 
 from collections import OrderedDict
 
-'''=== TEST OUTPUT HYPERGRAPHMODELCUSTOM MODEL ==='''
+'''=== CREATE CHECKPOINT WITH PRETRAINED IRESNET ==='''
 hyper_graph_custom = HyperGraphModelCustom(
     input_size= 256, 
-    coarse_downsample= 5, 
-    refine_downsample= 6, 
+    coarse_downsample= 4, 
+    refine_downsample= 5, 
     channels= 64
 )
+hyper_graph_custom.eval()
 
-dummy_image, dummy_mask = torch.randn(1, 3, 256, 256).to("cuda"), torch.randn(1, 1, 256, 256).to("cuda") 
-hyper_graph_custom.to('cuda')
+hyper_graph_custom.load_state_dict(torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt"))
 
-hyper_graph_custom(dummy_image, dummy_mask)
 
+
+'''=== TEST OUTPUT HYPERGRAPHMODELCUSTOM MODEL ==='''
+# hyper_graph_custom = HyperGraphModelCustom(
+#     input_size= 256, 
+#     coarse_downsample= 4, 
+#     refine_downsample= 5, 
+#     channels= 64
+# )
+# hyper_graph_custom.eval()
+
+# dummy_image, dummy_mask = torch.randn(1, 3, 256, 256).to("cuda"), torch.randn(1, 1, 256, 256).to("cuda") 
+# hyper_graph_custom.to('cuda')
+
+# hyper_graph_custom(dummy_image, dummy_mask)
+
+# torch.save(hyper_graph_custom.state_dict(), "ckpt/hyper_graph_custom.pt")
 
 '''=== TEST OUTPUT ENCODER CUSTOM COARSE MODEL ==='''
 # coarse_model_resnet = CoarseModelResnet(downsample= 5, channels= 64)

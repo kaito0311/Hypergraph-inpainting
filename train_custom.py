@@ -88,6 +88,7 @@ def eval(step):
     counter = 0
     vis_folder = os.path.join(training_dir, "visualize", str(step))
     os.makedirs(vis_folder, exist_ok = True)
+    ckpt_folder = os.path.join
     for i, batch in enumerate(val_loader):
         inputs, masks, targets = batch
         inputs  = inputs.to('cuda')
@@ -111,7 +112,6 @@ def eval(step):
             img_complete = np.array(img_target*(1 - img_mask_bin) + img_refine*img_mask_bin, dtype = np.uint8)
             img = np.concatenate([img_input, img_mask, img_coarse, img_refine, img_complete, img_target], axis = 2)
             img = np.transpose(img, (1, 2, 0))
-            print("saving image in ", visfolder)
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(counter + ix)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
         counter += len(inputs)
     model_gen.train()
@@ -135,6 +135,8 @@ def train():
         print ("EPOCH : " + str (epoch))
         
         for i, batch in enumerate(train_loader):
+            model_gen.coarse_model.iresnet160_gate.resnet_component.requires_grad_(False)
+            model_gen.refine_model.iresnet160_gate.resnet_component.requires_grad_(False)
             if len(batch[0]) != batch_size:
                 print('[WARNING] Skipped batch {} due to invalid number/batch_size:'.format(i), len(batch[0]), batch_size)
                 continue
