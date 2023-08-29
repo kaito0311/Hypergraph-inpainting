@@ -11,6 +11,7 @@ from models.model import CoarseModel, RefineModel, HyperGraphModel, Discriminato
 from models.model_custom import CoarseModelResnet, HyperGraphModelCustom
 from dataloader import FaceInpaintingData
 from torch.utils.data import Dataset, DataLoader
+import mlflow
 
 def discriminator_loss(disc_original_output, disc_generated_output):
     B = disc_original_output.size()[0]
@@ -92,6 +93,7 @@ def eval(step):
         ckpt_folder = os.path.join(training_dir, "ckpt")
         os.makedirs(ckpt_folder, exist_ok= True)
         torch.save(model_gen.state_dict(), os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt") )
+        # mlflow.log_artifact(os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt"), "checkpoint")
 
     for i, batch in enumerate(val_loader):
         inputs, masks, targets = batch
@@ -117,6 +119,7 @@ def eval(step):
             img = np.concatenate([img_input, img_mask, img_coarse, img_refine, img_complete, img_target], axis = 2)
             img = np.transpose(img, (1, 2, 0))
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(counter + ix)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+            # mlflow.log_artifact(os.path.join(vis_folder, "vis_{}.jpg".format(counter + ix)), "visualize")
         counter += len(inputs)
     model_gen.train()
 
@@ -243,22 +246,66 @@ def train():
         print ('avg_real_loss = ', avg_real_loss)
         print ('avg_fake_loss = ', avg_fake_loss)
 
+        metrics = {
+            "avg_total_loss":avg_total_loss, 
+            'avg_valid_l1_loss': avg_valid_l1_loss, 
+            'avg_hole_l1_loss':avg_hole_l1_loss,
+            'avg_edge_loss':avg_edge_loss,
+            "avg_gan_loss":avg_gan_loss,
+            "avg_pl_out":avg_pl_out,
+            "avg_pl_comp":avg_pl_comp,
+            "avg_disc_loss":avg_disc_loss,
+            "avg_real_loss":avg_real_loss,
+            "avg_fake_loss":avg_fake_loss
+        }
+
+        mlflow.log_metrics(metrics= metrics, step= step)
+
 if __name__ == '__main__':
+
+    # MLFlow
+    experiment_name = 'Face_Inpainting'
+    experiment = mlflow.set_experiment(experiment_name=experiment_name) 
+    run = mlflow.start_run(run_name= "test_version_1",
+                           run_id=None,
+                           experiment_id= experiment.experiment_id, 
+                           description= "Run training 4:00PM 29/08/23")
+
+    metrics = {
+
+    }
+
+
     # Config
-    valid_every = 20
+    valid_every = 100
     print_every = 10
-    save_every = 100
+    save_every = 200
     batch_size = 2
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
     warmup_length = 0 # 50k iter 
-    epoches = 500
+    epoches = 1000
     num_workers = 2
     train_gt_folder = ''
     val_gt_folder = './data/'
     training_dir = 'experiments'
     pretrained = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
+
+    params_mlflow = {
+        "batch_size": batch_size, 
+        'lr_gen': lr_gen,
+        'lr_disc': lr_disc,
+        'wd': wd,
+        'warmup_length': warmup_length,
+        'epoches': epoches,
+        'train_gt_folder': train_gt_folder,
+        'val_gt_folder': val_gt_folder,
+        'train_dir': training_dir, 
+        'pretrained': pretrained
+    }
+
+    mlflow.log_params(params_mlflow)
     # pretrained = None
 
     VALID_LOSS_WEIGHT = 0.2
