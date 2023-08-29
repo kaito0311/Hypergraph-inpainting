@@ -9,17 +9,16 @@ from collections import OrderedDict
 
 '''==== TEST DOUBLE RESNET COARSE MODEL '''
 
-model_coarse = CoarseModelDoubleResnet(downsample= 5) 
+# model_coarse = CoarseModelDoubleResnet(downsample= 5) 
+model_coarse = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 4, channels = 64)
 model_coarse.to("cuda")
-dummy_image, dummy_mask = torch.randn(1, 3, 256, 256).to("cuda"), torch.randn(1, 3, 256, 256).to("cuda") 
+dummy_image, dummy_mask = torch.randn(1, 3, 256, 256).to("cuda"), torch.randn(1, 1, 256, 256).to("cuda") 
 
-output_image, output_mask = model_coarse(dummy_image, dummy_mask)
+x_return = model_coarse(dummy_image, dummy_mask)
 
-for out in output_image: 
-    print(out.shape)
+while(True):
+    pass 
 
-for out in output_mask: 
-    print(out.shape)
 
 
 

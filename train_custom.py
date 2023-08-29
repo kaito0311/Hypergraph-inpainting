@@ -118,12 +118,7 @@ def eval(step):
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(counter + ix)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
         counter += len(inputs)
     model_gen.train()
-    model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
-    model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
-    for p in model_gen.coarse_model.env_convs[0].resnet_component.parameters(): 
-        p.requires_grad = False 
-    for p in model_gen.refine_model.env_convs[0].resnet_component.parameters(): 
-        p.requires_grad = False 
+
 def train():
     step = 0
     for epoch in range (0, epoches) :
@@ -141,13 +136,8 @@ def train():
         print ("EPOCH : " + str (epoch))
         
         for i, batch in enumerate(train_loader):
-            model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
-            model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
-            for p in model_gen.coarse_model.env_convs[0].resnet_component.parameters(): 
-                p.requires_grad = False 
-            for p in model_gen.refine_model.env_convs[0].resnet_component.parameters(): 
-                p.requires_grad = False 
-
+            # model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
+            # model_gen.refine_model.env_image_conv[0].requires_grad_(False)
             if len(batch[0]) != batch_size:
                 print('[WARNING] Skipped batch {} due to invalid number/batch_size:'.format(i), len(batch[0]), batch_size)
                 continue
@@ -266,8 +256,8 @@ if __name__ == '__main__':
     train_gt_folder = ''
     val_gt_folder = './data/'
     training_dir = 'experiments'
-    pretrained = "experiments/ckpt/ckpt_380.pt"
-    # pretrained = None
+    # pretrained = "experiments/ckpt/ckpt_380.pt"
+    pretrained = None
 
     VALID_LOSS_WEIGHT = 0.2
     HOLE_LOSS_WEIGHT = 1.0
@@ -279,25 +269,28 @@ if __name__ == '__main__':
     # PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0
     # Define model 
-    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64)
+    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 4, channels = 64)
     model_disc = Discriminator(input_size = 256, discriminator_downsample = 6, channels = 64)
 
     if pretrained is not None: 
-        model_gen.load_state_dict(torch.load(pretrained))
-        print("Loaded pretrained!!!")
+        try:
+            model_gen.load_state_dict(torch.load(pretrained))
+            print("Loaded pretrained!!!")
+        except:
+            raise ValueError("Cannot load pretrained")
     
     model_gen.train()
-    model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
-    model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
-
-    for p in model_gen.coarse_model.env_convs[0].resnet_component.parameters(): 
-        p.requires_grad = False 
-    for p in model_gen.refine_model.env_convs[0].resnet_component.parameters(): 
-        p.requires_grad = False 
 
     # model_disc = VGGStyleDiscriminator(num_in_ch = 3, num_feat = 16)
     model_gen.to('cuda')
     model_disc.to('cuda')
+    model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
+    model_gen.refine_model.env_image_conv[0].requires_grad_(False)
+    num_parameter = 0 
+    for p in model_gen.parameters(): 
+        if p.requires_grad: 
+            num_parameter += p.numel() 
+    print("num_parameter: ", num_parameter)
     # Loss
     percep_loss_obj = PerceptualLoss(layer_weights = {'conv1_2': 0.1,
                                                   'conv2_2': 0.1,
@@ -325,20 +318,12 @@ if __name__ == '__main__':
 
     # Optimizer & Scheduler
 
-    # params_gen = [name for name, p in model_gen.named_parameters()]
-    params_gen = []
-    params_coarse = ["coarse_model.env_convs.0.resnet_component." + name for name, p in model_gen.coarse_model.env_convs[0].resnet_component.named_parameters()]
-    params_refine = ["refine_model.env_convs.0.resnet_component." + name for name, p in model_gen.refine_model.env_convs[0].resnet_component.named_parameters()]
-    # print(params_gen[:10])
-    # exit()
-    for name, p in model_gen.named_parameters(): 
-        if name in params_coarse:
-            pass 
-        elif name in params_refine: pass 
-        else: params_gen.append(p)
+    # params_gen = [p for name, p in model_gen.named_parameters()]
+    params_gen = [] 
+    for name, p in model_gen.named_parameters():
+        if p.requires_grad: 
+            params_gen.append(p)
     
-  
-
     params_disc = [p for name, p in model_disc.named_parameters()]
     optimizer_gen = torch.optim.AdamW(params_gen, lr=lr_gen, weight_decay=wd)
     optimizer_disc = torch.optim.AdamW(params_disc, lr=lr_disc, weight_decay=wd)
