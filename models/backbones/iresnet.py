@@ -348,8 +348,6 @@ class GatedBlockResnet(torch.nn.Module):
         return x 
 
 
-
-
 class IResNetGateBlock(nn.Module): 
     fc_scale = 7 * 7
     
@@ -394,7 +392,6 @@ class IResNetGateBlock(nn.Module):
     
     def forward(self, x):
         with torch.cuda.amp.autocast(self.fp16):
-            x = self.conv1(x)
             x = self.resnet_component.bn1(x)
             x = self.resnet_component.prelu(x)
             x_56 = self.resnet_component.layer1(x)

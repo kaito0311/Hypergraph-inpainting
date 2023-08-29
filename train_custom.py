@@ -118,7 +118,12 @@ def eval(step):
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(counter + ix)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
         counter += len(inputs)
     model_gen.train()
-
+    model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
+    model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
+    for p in model_gen.coarse_model.env_convs[0].resnet_component.parameters(): 
+        p.requires_grad = False 
+    for p in model_gen.refine_model.env_convs[0].resnet_component.parameters(): 
+        p.requires_grad = False 
 def train():
     step = 0
     for epoch in range (0, epoches) :
@@ -138,6 +143,11 @@ def train():
         for i, batch in enumerate(train_loader):
             model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
             model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
+            for p in model_gen.coarse_model.env_convs[0].resnet_component.parameters(): 
+                p.requires_grad = False 
+            for p in model_gen.refine_model.env_convs[0].resnet_component.parameters(): 
+                p.requires_grad = False 
+
             if len(batch[0]) != batch_size:
                 print('[WARNING] Skipped batch {} due to invalid number/batch_size:'.format(i), len(batch[0]), batch_size)
                 continue
@@ -157,11 +167,9 @@ def train():
             inputs  = inputs.to('cuda')
             masks   = masks.to('cuda')
             targets = targets.to('cuda')
-            for p in model_gen.coarse_model.iresnet160_gate.resnet_component.parameters():
-                assert p.requires_grad == False
+
             prediction_coarse, prediction_refine = model_gen(inputs, masks)
-            for p in model_gen.coarse_model.iresnet160_gate.resnet_component.parameters():
-                assert p.requires_grad == False
+
             # prediction_coarse = torch.clamp(prediction_coarse, 0.0, 1.0)
             # prediction_refine = torch.clamp(prediction_refine, 0.0, 1.0)
             disc_generated_output = model_disc(prediction_refine, masks)
@@ -253,12 +261,13 @@ if __name__ == '__main__':
     lr_disc = 1e-4
     wd = 0.01
     warmup_length = 0 # 50k iter 
-    epoches = 100
+    epoches = 500
     num_workers = 2
     train_gt_folder = ''
     val_gt_folder = './data/'
     training_dir = 'experiments'
-    pretrained = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
+    pretrained = "experiments/ckpt/ckpt_380.pt"
+    # pretrained = None
 
     VALID_LOSS_WEIGHT = 0.2
     HOLE_LOSS_WEIGHT = 1.0
@@ -269,7 +278,6 @@ if __name__ == '__main__':
     # PERCEPTUAL_LOSS_COARSE_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0
-
     # Define model 
     model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64)
     model_disc = Discriminator(input_size = 256, discriminator_downsample = 6, channels = 64)
@@ -281,6 +289,12 @@ if __name__ == '__main__':
     model_gen.train()
     model_gen.coarse_model.env_convs[0].resnet_component.requires_grad_(False)
     model_gen.refine_model.env_convs[0].resnet_component.requires_grad_(False)
+
+    for p in model_gen.coarse_model.env_convs[0].resnet_component.parameters(): 
+        p.requires_grad = False 
+    for p in model_gen.refine_model.env_convs[0].resnet_component.parameters(): 
+        p.requires_grad = False 
+
     # model_disc = VGGStyleDiscriminator(num_in_ch = 3, num_feat = 16)
     model_gen.to('cuda')
     model_disc.to('cuda')
@@ -311,7 +325,20 @@ if __name__ == '__main__':
 
     # Optimizer & Scheduler
 
-    params_gen = [p for name, p in model_gen.named_parameters()]
+    # params_gen = [name for name, p in model_gen.named_parameters()]
+    params_gen = []
+    params_coarse = ["coarse_model.env_convs.0.resnet_component." + name for name, p in model_gen.coarse_model.env_convs[0].resnet_component.named_parameters()]
+    params_refine = ["refine_model.env_convs.0.resnet_component." + name for name, p in model_gen.refine_model.env_convs[0].resnet_component.named_parameters()]
+    # print(params_gen[:10])
+    # exit()
+    for name, p in model_gen.named_parameters(): 
+        if name in params_coarse:
+            pass 
+        elif name in params_refine: pass 
+        else: params_gen.append(p)
+    
+  
+
     params_disc = [p for name, p in model_disc.named_parameters()]
     optimizer_gen = torch.optim.AdamW(params_gen, lr=lr_gen, weight_decay=wd)
     optimizer_disc = torch.optim.AdamW(params_disc, lr=lr_disc, weight_decay=wd)
