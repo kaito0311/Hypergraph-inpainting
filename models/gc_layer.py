@@ -2,7 +2,57 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class GatedConvolutionOperator(torch.nn.Module):
+    '''
+    Input: feature map of image and mask 
+    Output: gate convolution on them  
+    '''
+    def __init__ (
+        self, 
+        out_channels= None,
+        activation='ELU',
+        bias = True,
+        batch_norm=False,
+        negative_slope = 0.2,
+    ):
+        super ().__init__()
+        self.out_channels= out_channels 
+        if activation is not None:
+            if activation == 'LeakyReLU':
+                self.activation = torch.nn.LeakyReLU(negative_slope=negative_slope, inplace=False)
+            elif activation == 'ReLU':
+                self.activation = torch.nn.ReLU()
+            elif activation == 'ELU':
+                self.activation = torch.nn.ELU(alpha=1.0, inplace=False)
+            else:
+                raise NotImplementedError("Could not get activation {}".format(activation))
+        else:
+            self.activation = None  
+        
+        if batch_norm and out_channels is not None:
+            self.batch_norm = torch.nn.BatchNorm2d(out_channels)
+        else:
+            self.batch_norm = None
+        self.sigmoid = torch.nn.Sigmoid()
+    def gated(self, mask):
+        return self.sigmoid(mask)
 
+    def __call__ (self, feature_image, feature_mask) :
+        if self.out_channels == 3 and self.activation is None: 
+            return feature_image 
+
+        x = None 
+        
+        if self.activation is not None: 
+            x = self.activation(feature_image) * self.gated(feature_mask) 
+        else: 
+            raise ValueError("No activation and is not output convolution")
+    
+        if self.batch_norm is not None: 
+            return self.batch_norm(x) 
+        else: 
+            return x 
+        
 
 class GatedConvolution(torch.nn.Module) :
     def __init__ (

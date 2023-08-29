@@ -514,6 +514,10 @@ def iresnet160_wo_fc(pretrained=False, progress=True, **kwargs):
     model = IResNet_wo_fc(IBasicBlock, [3, 24, 49, 3], **kwargs).cuda()
     return model 
 
+def iresnet18_wo_fc(pretrained=False, progress=True, **kwargs):
+    model = IResNet_wo_fc(IBasicBlock, [2, 2, 2, 2], **kwargs).cuda()
+    return model 
+
 def iresnet160_gate(**kwargs):
     model = IResNetGateBlock(IBasicBlock, [3, 24, 49, 3],gate_channels= 64, **kwargs).cuda()
     return model 

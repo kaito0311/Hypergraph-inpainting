@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # from .model import * 
-from models.gc_layer import GatedConvolution, GatedDeConvolution
-from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, iresnet18, iresnet160
+from models.gc_layer import GatedConvolution, GatedDeConvolution, GatedConvolutionOperator
+from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, iresnet18_wo_fc
 from .model import GatedBlock, GatedDeBlock
 
 
@@ -20,7 +20,8 @@ class CoarseModelDoubleResnet(torch.nn.Module):
                                                 output downsample 1 
 
     '''
-    def __init__(self, input_size = 256, channels = 64, downsample = 3): 
+    def __init__(self, input_size = 256, channels = 64, downsample = 3, 
+                 activation='ELU', batch_norm=False, negative_slope = 0.2, bias = True,): 
         super().__init__() 
         self.downsample = downsample 
 
@@ -28,16 +29,40 @@ class CoarseModelDoubleResnet(torch.nn.Module):
 
         self.env_image_conv = nn.ModuleList() 
         self.env_mask_conv = nn.ModuleList() 
+        self.list_gate_operator : list[GatedConvolutionOperator] = nn.ModuleList() 
+        self.env_fuse_convs: list[GatedBlock] = nn.ModuleList() # 
+        # TM-TODO: ADD gate convolution for extra downsample 
+        self.extra_env_conv = nn.ModuleList() # both image + mask fuse 
+        
 
         in_channels = channels
 
-        self.env_image_conv.append(iresnet160()) 
-        self.env_mask_conv.append(iresnet18())
+        self.env_image_conv.append(iresnet160_wo_fc()) 
+        self.env_mask_conv.append(iresnet18_wo_fc())
 
-        in_channels = in_channels * 8 
+        
 
+        for i in range(downsample): 
+            self.list_gate_operator.append(
+                GatedConvolutionOperator(
+                    activation= 'LeakyReLU',
+                )
+            )
+            if i < 4: # only for output of resnet layer 
+                self.env_fuse_convs.append(
+                    GatedBlock(
+                        in_channels= in_channels,
+                        out_channels= in_channels, 
+                        n_conv= 1,
+                        downscale_first= False, 
+                        dilation= 1
+                    )
+                )
+            in_channels = in_channels * 2 
+        
+        in_channels = channels * 8 
         for i in range(4, downsample): 
-            self.env_image_conv.append(
+            self.extra_env_conv.append(
                 GatedBlock(
                     in_channels= in_channels, 
                     out_channels= 2*in_channels, 
@@ -47,16 +72,52 @@ class CoarseModelDoubleResnet(torch.nn.Module):
                 ) 
             )
 
-            self.env_mask_conv.append(
-                GatedBlock(
-                    in_channels= in_channels, 
-                    out_channels= 2*in_channels, 
-                    n_conv= 2, 
-                    downscale_first= True,
-                    dilation= 1,
-                ) 
-            )
+            in_channels = 2 * in_channels 
+        
 
+
+
+    
+    def forward(self, mask, image): 
+        
+
+        # Encoder 
+
+        # Take feature maps by using resnet backbone
+        output_embed_image = self.env_image_conv[0](image) # x_embed, x_down_1, x_down_2, x_down_3, x_down_4 
+        output_embed_mask = self.env_mask_conv[0](mask) 
+
+        ls_feature_map_image = list(output_embed_image[1:]) # shape (batch_size, channels, height, width)
+        ls_feature_map_mask = list(output_embed_mask[1:]) 
+
+        skip_layer = [] 
+        x_return = None 
+        # Fuse feature maps imgage and feature map mask together to create output of encoder
+        for index in range(self.downsample):
+            if index < 4: 
+                feature_image = ls_feature_map_image[index]
+                feature_mask = ls_feature_map_mask[index] 
+                print("Featrue image shape: ", feature_image.shape)
+                print('feature_mask shape', feature_mask.shape)
+               
+                if feature_mask.shape[1] == 3: 
+                    if index != self.downsample -1 : 
+                        skip_layer.append(feature_image) 
+                else: 
+                    x_return = (self.list_gate_operator[index](feature_image= feature_image, feature_mask = feature_mask)) 
+                    x_return = self.env_fuse_convs[index](x_return)
+                    print("x output: ", x_return.shape)
+                    if index != self.downsample -1 : 
+                        skip_layer.append(x_return)
+            else:
+                x_return = self.extra_env_conv[index - 4](x_return) 
+                print("x extra output: ", x_return.shape)
+                if index != self.downsample - 1: 
+                    skip_layer.append(x_return) 
+        
+        
+        return output_embed_image, output_embed_mask 
+    
 
 class CoarseModelResnet(torch.nn.Module): 
     def __init__(self, input_size = 256, channels = 64, downsample = 3):

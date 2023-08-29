@@ -1,9 +1,27 @@
 from utils import *
-from models.model_custom import CoarseModelResnet, HyperGraphModelCustom
+from models.model_custom import CoarseModelResnet, HyperGraphModelCustom, CoarseModelDoubleResnet
+
 from models.backbones.iresnet import iresnet160, iresnet160_wo_fc, iresnet160_gate
 import torch 
 
 from collections import OrderedDict
+
+
+'''==== TEST DOUBLE RESNET COARSE MODEL '''
+
+model_coarse = CoarseModelDoubleResnet(downsample= 5) 
+model_coarse.to("cuda")
+dummy_image, dummy_mask = torch.randn(1, 3, 256, 256).to("cuda"), torch.randn(1, 3, 256, 256).to("cuda") 
+
+output_image, output_mask = model_coarse(dummy_image, dummy_mask)
+
+for out in output_image: 
+    print(out.shape)
+
+for out in output_mask: 
+    print(out.shape)
+
+
 
 '''=== CREATE CHECKPOINT WITH PRETRAINED IRESNET ==='''
 # import torch
@@ -60,32 +78,32 @@ from collections import OrderedDict
 
 # print(hyper_graph_custom.coarse_model.env_convs[0])
 
-import torch
-state_dict_hyper = torch.load("experiments/ckpt/ckpt_20.pt")
-state_dict_hyper_2 = torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt")
+# import torch
+# state_dict_hyper = torch.load("experiments/ckpt/ckpt_20.pt")
+# state_dict_hyper_2 = torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt")
 
-state_dict_resnet = torch.load("ckpt/r160_imintv4_statedict.pth")
-for key in state_dict_resnet.keys(): 
-    new_key = "refine_model.env_convs.0.resnet_component." + key 
-    if str(key).endswith("running_mean"): 
-        continue 
-    if str(key).endswith("running_var"): 
-        continue 
-    if str(key).endswith("num_batches_tracked"): 
-        continue 
-    if new_key not in state_dict_hyper.keys():
-        print(new_key)
-    else:
-        # assert torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key]) == 0, torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key])
-        # print(state_dict_hyper_2[new_key])
-        # print(new_key)
-        assert torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0, (torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]))
+# state_dict_resnet = torch.load("ckpt/r160_imintv4_statedict.pth")
+# for key in state_dict_resnet.keys(): 
+#     new_key = "refine_model.env_convs.0.resnet_component." + key 
+#     if str(key).endswith("running_mean"): 
+#         continue 
+#     if str(key).endswith("running_var"): 
+#         continue 
+#     if str(key).endswith("num_batches_tracked"): 
+#         continue 
+#     if new_key not in state_dict_hyper.keys():
+#         print(new_key)
+#     else:
+#         # assert torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key]) == 0, torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key])
+#         # print(state_dict_hyper_2[new_key])
+#         # print(new_key)
+#         assert torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0, (torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]))
 
-    new_key = "coarse_model.env_convs.0.resnet_component." + key 
-    if new_key not in state_dict_hyper.keys():
-        print(new_key)
-    else: 
-        assert  torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0 
+#     new_key = "coarse_model.env_convs.0.resnet_component." + key 
+#     if new_key not in state_dict_hyper.keys():
+#         print(new_key)
+#     else: 
+#         assert  torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0 
 
 
 
