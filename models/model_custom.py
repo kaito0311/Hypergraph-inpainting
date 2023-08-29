@@ -5,8 +5,58 @@ import torch.nn.functional as F
 
 # from .model import * 
 from models.gc_layer import GatedConvolution, GatedDeConvolution
-from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet
+from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, iresnet18, iresnet160
 from .model import GatedBlock, GatedDeBlock
+
+
+class CoarseModelDoubleResnet(torch.nn.Module): 
+    '''
+    Encoder architecture: 
+    [image] -> pretrained_resnet160     ->| downsample_1 |-> downsample_2 -> ... 
+    [mask]  -> custom_resnet_less_layer ->| downsample_1 |-> downsample_2 -> ... 
+                                          |              |
+                                              fuse_like_gc
+                                                   |
+                                                output downsample 1 
+
+    '''
+    def __init__(self, input_size = 256, channels = 64, downsample = 3): 
+        super().__init__() 
+        self.downsample = downsample 
+
+        assert downsample >= 4, 'Resnet have 4 downsample layer'
+
+        self.env_image_conv = nn.ModuleList() 
+        self.env_mask_conv = nn.ModuleList() 
+
+        in_channels = channels
+
+        self.env_image_conv.append(iresnet160()) 
+        self.env_mask_conv.append(iresnet18())
+
+        in_channels = in_channels * 8 
+
+        for i in range(4, downsample): 
+            self.env_image_conv.append(
+                GatedBlock(
+                    in_channels= in_channels, 
+                    out_channels= 2*in_channels, 
+                    n_conv= 2, 
+                    downscale_first= True,
+                    dilation= 1,
+                ) 
+            )
+
+            self.env_mask_conv.append(
+                GatedBlock(
+                    in_channels= in_channels, 
+                    out_channels= 2*in_channels, 
+                    n_conv= 2, 
+                    downscale_first= True,
+                    dilation= 1,
+                ) 
+            )
+
 
 class CoarseModelResnet(torch.nn.Module): 
     def __init__(self, input_size = 256, channels = 64, downsample = 3):

@@ -471,6 +471,7 @@ class IResNet_wo_fc(IResNet):
         return x, x_56, x_28, x_14, x_7
 
 
+
 def _iresnet(arch, block, layers, pretrained, progress, **kwargs):
     model = IResNet(block, layers, **kwargs).cuda()
     if pretrained:
