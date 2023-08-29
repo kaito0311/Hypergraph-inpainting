@@ -88,9 +88,10 @@ def eval(step):
     counter = 0
     vis_folder = os.path.join(training_dir, "visualize", str(step))
     os.makedirs(vis_folder, exist_ok = True)
-    ckpt_folder = os.path.join(training_dir, "ckpt")
-    os.makedirs(ckpt_folder, exist_ok= True)
-    torch.save(model_gen.state_dict(), os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt") )
+    if step % save_every == 0:
+        ckpt_folder = os.path.join(training_dir, "ckpt")
+        os.makedirs(ckpt_folder, exist_ok= True)
+        torch.save(model_gen.state_dict(), os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt") )
 
     for i, batch in enumerate(val_loader):
         inputs, masks, targets = batch
@@ -246,6 +247,7 @@ if __name__ == '__main__':
     # Config
     valid_every = 20
     print_every = 10
+    save_every = 100
     batch_size = 2
     lr_gen = 1e-4
     lr_disc = 1e-4
@@ -256,8 +258,8 @@ if __name__ == '__main__':
     train_gt_folder = ''
     val_gt_folder = './data/'
     training_dir = 'experiments'
-    # pretrained = "experiments/ckpt/ckpt_380.pt"
-    pretrained = None
+    pretrained = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
+    # pretrained = None
 
     VALID_LOSS_WEIGHT = 0.2
     HOLE_LOSS_WEIGHT = 1.0
@@ -269,7 +271,7 @@ if __name__ == '__main__':
     # PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0
     # Define model 
-    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 4, channels = 64)
+    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64)
     model_disc = Discriminator(input_size = 256, discriminator_downsample = 6, channels = 64)
 
     if pretrained is not None: 
