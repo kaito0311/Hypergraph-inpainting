@@ -15,7 +15,7 @@ vgg16 = torchvision.models.vgg16(pretrained=True)
 vgg16.eval() 
 feature1 = vgg16(dummy_input1)
 feature2 = vgg16(dummy_input2)
-
+print(feature1.shape)
 loss = torch.nn.functional.mse_loss(feature1, feature2)
 print(loss)
 

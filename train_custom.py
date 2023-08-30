@@ -12,6 +12,7 @@ from models.model_custom import CoarseModelResnet, HyperGraphModelCustom
 from dataloader import FaceInpaintingData
 from torch.utils.data import Dataset, DataLoader
 import mlflow
+import torchvision
 
 def discriminator_loss(disc_original_output, disc_generated_output):
     B = disc_original_output.size()[0]
@@ -75,16 +76,22 @@ def generator_loss(disc_generated_output, gen_output_coarse, gen_output_refine, 
     # edge_loss = 0
 
     # Feature loss 
-    
+    vgg16 = torchvision.models.vgg16(pretrained=True).to("cuda") 
+    vgg16.eval() 
+    target_feature = vgg16(target)
+    refine_feature = vgg16(gen_output_refine) 
+    feature_loss = torch.nn.functional.mse_loss(refine_feature, target_feature)
+
 
     total_loss =  valid_l1_loss \
                     + hole_l1_loss \
                     + gan_loss \
                     + perceptual_loss_out \
                     + perceptual_loss_comp \
-                    + edge_loss
+                    + edge_loss \
+                    + feature_loss 
     
-    return total_loss, valid_l1_loss, hole_l1_loss, edge_loss, gan_loss, perceptual_loss_out, perceptual_loss_comp
+    return total_loss, valid_l1_loss, hole_l1_loss, edge_loss, gan_loss, perceptual_loss_out, perceptual_loss_comp, feature_loss
 
 def eval(step):
     print('-'*50)
@@ -144,6 +151,7 @@ def train():
         avg_disc_loss = 0
         avg_real_loss = 0
         avg_fake_loss = 0
+        avg_feature_loss = 0 
         print ("EPOCH : " + str (epoch))
         
         for i, batch in enumerate(train_loader):
@@ -174,7 +182,7 @@ def train():
             # prediction_coarse = torch.clamp(prediction_coarse, 0.0, 1.0)
             # prediction_refine = torch.clamp(prediction_refine, 0.0, 1.0)
             disc_generated_output = model_disc(prediction_refine, masks)
-            total_loss, valid_l1_loss, hole_l1_loss, edge_loss, gan_loss, pl_out, pl_comp = generator_loss(disc_generated_output, prediction_coarse, prediction_refine, targets, masks)
+            total_loss, valid_l1_loss, hole_l1_loss, edge_loss, gan_loss, pl_out, pl_comp, feature_loss = generator_loss(disc_generated_output, prediction_coarse, prediction_refine, targets, masks)
             total_loss.backward()
             optimizer_gen.step()
             i1 = time.time()
@@ -200,6 +208,7 @@ def train():
             avg_disc_loss += disc_loss.detach().cpu().numpy()
             avg_real_loss += real_score.detach().cpu().numpy()
             avg_fake_loss += fake_score.detach().cpu().numpy()
+            avg_feature_loss += feature_loss.detach().cpu().numpy() 
             i3 = time.time()
             if step % print_every == 0 and step > 1:
                 print('-'*50)
@@ -213,6 +222,7 @@ def train():
                 tavg_disc_loss = avg_disc_loss/(i + 1)
                 tavg_real_loss = avg_real_loss/(i + 1)
                 tavg_fake_loss = avg_fake_loss/(i + 1)
+                tavg_feature_loss = avg_feature_loss / (i+1)
                 print ('step', step)
                 print ('tavg_total_loss = ', tavg_total_loss)
                 print ('avg_valid_l1_loss = ', tavg_valid_l1_loss)
@@ -226,6 +236,7 @@ def train():
                 print ('avg_fake_loss = ', tavg_fake_loss)
                 print ('lr_gen = ', get_lr(optimizer_gen))
                 print ('lr_disc = ', get_lr(optimizer_disc))
+                print ('tavg_feature_loss = ', tavg_feature_loss)
                 print ('time data / time gen / time disc / time all = {} / {} / {} / {}'.format(i0 - i4, i1-i0, i2-i1,i3-i0))
 
                 metrics = {
@@ -238,7 +249,10 @@ def train():
                     "tavg_pl_comp":tavg_pl_comp,
                     "tavg_disc_loss":tavg_disc_loss,
                     "tavg_real_loss":tavg_real_loss,
-                    "tavg_fake_loss":tavg_fake_loss
+                    "tavg_fake_loss":tavg_fake_loss,
+                    'tavg_feature_loss': tavg_feature_loss,
+                    'lr_gen: ': get_lr(optimizer_gen),
+                    'lr_disc:': get_lr(optimizer_disc),
                 }
                 mlflow.log_metrics(metrics= metrics, step= step)
 
@@ -288,10 +302,10 @@ if __name__ == '__main__':
     # MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "training from 15k step",
+    run = mlflow.start_run(run_name= "training from scratch v2",
                            run_id=None,
                            experiment_id= experiment.experiment_id, 
-                           description= "Version add save chkpt disc")
+                           description= "Add feature loss")
 
     metrics = {
 
@@ -312,7 +326,7 @@ if __name__ == '__main__':
     train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
     val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained_gen = "experiments/ckpt/ckpt_15000.pt"
+    pretrained_gen = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
     pretrained_disc = None
 
     params_mlflow = {
