@@ -76,11 +76,11 @@ def generator_loss(disc_generated_output, gen_output_coarse, gen_output_refine, 
     # edge_loss = 0
 
     # Feature loss 
-    vgg16 = torchvision.models.vgg16(pretrained=True).to("cuda") 
-    vgg16.eval() 
-    target_feature = vgg16(target)
-    refine_feature = vgg16(gen_output_refine) 
-    feature_loss = torch.nn.functional.mse_loss(refine_feature, target_feature)
+    # vgg16 = torchvision.models.vgg16(pretrained=True).to("cuda") 
+    # vgg16.eval() 
+    # target_feature = vgg16(target)
+    # refine_feature = vgg16(gen_output_refine) 
+    feature_loss = percep_loss_obj.vgg.forward_feature(gen_output_refine, target) * FEATURE_LOSS_WEIGHT
 
 
     total_loss =  valid_l1_loss \
@@ -251,8 +251,8 @@ def train():
                     "tavg_real_loss":tavg_real_loss,
                     "tavg_fake_loss":tavg_fake_loss,
                     'tavg_feature_loss': tavg_feature_loss,
-                    'lr_gen: ': get_lr(optimizer_gen),
-                    'lr_disc:': get_lr(optimizer_disc),
+                    'lr_gen': get_lr(optimizer_gen),
+                    'lr_disc': get_lr(optimizer_disc),
                 }
                 mlflow.log_metrics(metrics= metrics, step= step)
 
@@ -352,6 +352,7 @@ if __name__ == '__main__':
     GAN_LOSS_WEIGHT = 0.002
     PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0001
     PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0001
+    FEATURE_LOSS_WEIGHT = 0.1 
     # PERCEPTUAL_LOSS_COARSE_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0

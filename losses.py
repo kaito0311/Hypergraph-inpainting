@@ -159,6 +159,12 @@ class VGGFeatureExtractor(nn.Module):
 
         return output
 
+    def forward_feature(self, image, target_image):
+        feature = self.vgg_net(image) 
+        target_feature = self.vgg_net(target_image)
+
+        return torch.nn.functional.mse_loss(feature, target_feature) 
+        
 class PerceptualLoss(nn.Module):
     """Perceptual loss with commonly used style loss.
 
