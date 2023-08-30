@@ -292,7 +292,6 @@ def sobel_loss(pred, target, reduction = 'none'):
     # transform  function, three function, f, sqrt(f),pow(f)
     return F.l1_loss(train_img, ground_img, reduction=reduction)
 
-
 class GANLoss(nn.Module):
     """Define GAN loss.
 
@@ -395,7 +394,6 @@ class GANLoss(nn.Module):
 
         # loss_weight is always 1.0 for discriminators
         return loss if is_disc else loss * self.loss_weight
-
 
 class SobelLoss(nn.Module):
     """L1 (mean absolute error, MAE) loss.

@@ -3,37 +3,51 @@ from models.model_custom import CoarseModelResnet, HyperGraphModelCustom, Coarse
 
 from models.backbones.iresnet import iresnet160, iresnet160_wo_fc, iresnet160_gate
 import torch 
-
+import torchvision
 from collections import OrderedDict
+
+'''===  FEATURE LOSS VGG16'''
+
+dummy_input1 = torch.randn(2, 3, 256, 256)
+dummy_input2 = torch.randn(2, 3, 256, 256)
+
+vgg16 = torchvision.models.vgg16(pretrained=True) 
+vgg16.eval() 
+feature1 = vgg16(dummy_input1)
+feature2 = vgg16(dummy_input2)
+
+loss = torch.nn.functional.mse_loss(feature1, feature2)
+print(loss)
+
 
 '''=== CHECK FREEZE BACKBONE ====='''
 
-import torch
-state_dict_hyper = torch.load("experiments/ckpt/ckpt_20.pt")
-state_dict_hyper_2 = torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt")
+# import torch
+# state_dict_hyper = torch.load("experiments/ckpt/ckpt_20.pt")
+# state_dict_hyper_2 = torch.load("ckpt/hyper_graph_custom_pretrained_resnet.pt")
 
-state_dict_resnet = torch.load("ckpt/r160_imintv4_statedict.pth")
-for key in state_dict_resnet.keys(): 
-    new_key = "refine_model.env_image_conv.0." + key 
-    if str(key).endswith("running_mean"): 
-        continue 
-    if str(key).endswith("running_var"): 
-        continue 
-    if str(key).endswith("num_batches_tracked"): 
-        continue 
-    if new_key not in state_dict_hyper.keys():
-        print(new_key)
-    else:
-        # assert torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key]) == 0, torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key])
-        # print(state_dict_hyper_2[new_key])
-        # print(new_key)
-        assert torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0, (torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]))
+# state_dict_resnet = torch.load("ckpt/r160_imintv4_statedict.pth")
+# for key in state_dict_resnet.keys(): 
+#     new_key = "refine_model.env_image_conv.0." + key 
+#     if str(key).endswith("running_mean"): 
+#         continue 
+#     if str(key).endswith("running_var"): 
+#         continue 
+#     if str(key).endswith("num_batches_tracked"): 
+#         continue 
+#     if new_key not in state_dict_hyper.keys():
+#         print(new_key)
+#     else:
+#         # assert torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key]) == 0, torch.sum(state_dict_hyper[new_key] - state_dict_hyper_2[new_key])
+#         # print(state_dict_hyper_2[new_key])
+#         # print(new_key)
+#         assert torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0, (torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]))
 
-    new_key = "coarse_model.env_image_conv.0." + key 
-    if new_key not in state_dict_hyper.keys():
-        print(new_key)
-    else: 
-        assert  torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0 
+#     new_key = "coarse_model.env_image_conv.0." + key 
+#     if new_key not in state_dict_hyper.keys():
+#         print(new_key)
+#     else: 
+#         assert  torch.sum(state_dict_hyper[new_key] - state_dict_resnet[key]) == 0 
 
 
 '''=== CREATE CHECKPOINT WITH PRETRAINED IRESNET for COARSE MODEL DOUBLE RESNET ==='''

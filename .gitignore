@@ -5,3 +5,4 @@ pretrained/
 experiments/
 ckpt/
 mlruns/
+venv/

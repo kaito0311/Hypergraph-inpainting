@@ -74,12 +74,16 @@ def generator_loss(disc_generated_output, gen_output_coarse, gen_output_refine, 
     edge_loss = EDGE_LOSS_WEIGHT * (edge_out + edge_coarse)
     # edge_loss = 0
 
+    # Feature loss 
+    
+
     total_loss =  valid_l1_loss \
                     + hole_l1_loss \
                     + gan_loss \
                     + perceptual_loss_out \
                     + perceptual_loss_comp \
                     + edge_loss
+    
     return total_loss, valid_l1_loss, hole_l1_loss, edge_loss, gan_loss, perceptual_loss_out, perceptual_loss_comp
 
 def eval(step):
@@ -92,7 +96,10 @@ def eval(step):
     if step % save_every == 0:
         ckpt_folder = os.path.join(training_dir, "ckpt")
         os.makedirs(ckpt_folder, exist_ok= True)
-        torch.save(model_gen.state_dict(), os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt") )
+        torch.save(model_gen.state_dict(), os.path.join(ckpt_folder, f"ckpt_gen_{str(step)}.pt") )
+        model_disc.eval() 
+        torch.save(model_disc.state_dict(), os.path.join(ckpt_folder, f"ckpt_dis_{str(step)}.pt"))
+        model_disc.train()
         # mlflow.log_artifact(os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt"), "checkpoint")
 
     for i, batch in enumerate(val_loader):
@@ -207,7 +214,7 @@ def train():
                 tavg_real_loss = avg_real_loss/(i + 1)
                 tavg_fake_loss = avg_fake_loss/(i + 1)
                 print ('step', step)
-                print ('avg_gen_loss = ', tavg_total_loss)
+                print ('tavg_total_loss = ', tavg_total_loss)
                 print ('avg_valid_l1_loss = ', tavg_valid_l1_loss)
                 print ('avg_hole_l1_loss = ', tavg_hole_l1_loss)
                 print ('avg_edge_loss = ', tavg_edge_loss)
@@ -220,6 +227,22 @@ def train():
                 print ('lr_gen = ', get_lr(optimizer_gen))
                 print ('lr_disc = ', get_lr(optimizer_disc))
                 print ('time data / time gen / time disc / time all = {} / {} / {} / {}'.format(i0 - i4, i1-i0, i2-i1,i3-i0))
+
+                metrics = {
+                    "tavg_total_loss":tavg_total_loss, 
+                    'tavg_valid_l1_loss': tavg_valid_l1_loss, 
+                    'tavg_hole_l1_loss':tavg_hole_l1_loss,
+                    'tavg_edge_loss':tavg_edge_loss,
+                    "tavg_gan_loss":tavg_gan_loss,
+                    "tavg_pl_out":tavg_pl_out,
+                    "tavg_pl_comp":tavg_pl_comp,
+                    "tavg_disc_loss":tavg_disc_loss,
+                    "tavg_real_loss":tavg_real_loss,
+                    "tavg_fake_loss":tavg_fake_loss
+                }
+                mlflow.log_metrics(metrics= metrics, step= step)
+
+            
             if step % valid_every == 0 and step > 0:
                 print('VALIDATE')
                 eval(step)
@@ -247,18 +270,17 @@ def train():
         print ('avg_fake_loss = ', avg_fake_loss)
 
         metrics = {
-            "avg_total_loss":avg_total_loss, 
-            'avg_valid_l1_loss': avg_valid_l1_loss, 
-            'avg_hole_l1_loss':avg_hole_l1_loss,
-            'avg_edge_loss':avg_edge_loss,
-            "avg_gan_loss":avg_gan_loss,
-            "avg_pl_out":avg_pl_out,
-            "avg_pl_comp":avg_pl_comp,
-            "avg_disc_loss":avg_disc_loss,
-            "avg_real_loss":avg_real_loss,
-            "avg_fake_loss":avg_fake_loss
+            "avg_total_loss_avg":avg_total_loss, 
+            'avg_valid_l1_loss_avg': avg_valid_l1_loss, 
+            'avg_hole_l1_loss_avg':avg_hole_l1_loss,
+            'avg_edge_loss_avg':avg_edge_loss,
+            "avg_gan_loss_avg":avg_gan_loss,
+            "avg_pl_out_avg":avg_pl_out,
+            "avg_pl_comp_avg":avg_pl_comp,
+            "avg_disc_loss_avg":avg_disc_loss,
+            "avg_real_loss_avg":avg_real_loss,
+            "avg_fake_loss_avg":avg_fake_loss
         }
-
         mlflow.log_metrics(metrics= metrics, step= step)
 
 if __name__ == '__main__':
@@ -266,10 +288,10 @@ if __name__ == '__main__':
     # MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "test_version_1",
+    run = mlflow.start_run(run_name= "training from 15k step",
                            run_id=None,
                            experiment_id= experiment.experiment_id, 
-                           description= "Run training 4:00PM 29/08/23")
+                           description= "Version add save chkpt disc")
 
     metrics = {
 
@@ -277,20 +299,21 @@ if __name__ == '__main__':
 
 
     # Config
-    valid_every = 100
+    valid_every = 500
     print_every = 10
-    save_every = 200
+    save_every = 5000
     batch_size = 2
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
     warmup_length = 0 # 50k iter 
-    epoches = 1000
+    epoches = 10000
     num_workers = 2
-    train_gt_folder = ''
-    val_gt_folder = './data/'
+    train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
+    val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
+    pretrained_gen = "experiments/ckpt/ckpt_15000.pt"
+    pretrained_disc = None
 
     params_mlflow = {
         "batch_size": batch_size, 
@@ -302,7 +325,8 @@ if __name__ == '__main__':
         'train_gt_folder': train_gt_folder,
         'val_gt_folder': val_gt_folder,
         'train_dir': training_dir, 
-        'pretrained': pretrained
+        'pretrained_gen': pretrained_gen,
+        'pretrained_disc': pretrained_disc
     }
 
     mlflow.log_params(params_mlflow)
@@ -321,10 +345,16 @@ if __name__ == '__main__':
     model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64)
     model_disc = Discriminator(input_size = 256, discriminator_downsample = 6, channels = 64)
 
-    if pretrained is not None: 
+    if pretrained_gen is not None: 
         try:
-            model_gen.load_state_dict(torch.load(pretrained))
-            print("Loaded pretrained!!!")
+            model_gen.load_state_dict(torch.load(pretrained_gen))
+            print("Loaded pretrained gen!!!")
+        except:
+            raise ValueError("Cannot load pretrained")
+    if pretrained_disc is not None: 
+        try:
+            model_disc.load_state_dict(torch.load(pretrained_disc))
+            print("Loaded pretrained disc!!!")
         except:
             raise ValueError("Cannot load pretrained")
     
@@ -353,7 +383,7 @@ if __name__ == '__main__':
     sobel_loss_obj = SobelLoss(loss_weight=1.0, reduction='mean')
     gan_loss_obj = GANLoss('wgan_softplus')
     # Dataloader
-    trainset  = FaceInpaintingData(val_gt_folder)
+    trainset  = FaceInpaintingData(train_gt_folder)
     valset    = FaceInpaintingData(val_gt_folder)
     train_loader = DataLoader(
             trainset, batch_size=batch_size, shuffle=True,
