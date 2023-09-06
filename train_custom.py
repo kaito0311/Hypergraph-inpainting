@@ -80,8 +80,8 @@ def generator_loss(disc_generated_output, gen_output_coarse, gen_output_refine, 
     # vgg16.eval() 
     # target_feature = vgg16(target)
     # refine_feature = vgg16(gen_output_refine) 
-    feature_loss = percep_loss_obj.vgg.forward_feature(gen_output_refine, target) * FEATURE_LOSS_WEIGHT
-
+    # feature_loss = percep_loss_obj.vgg.forward_feature(gen_output_refine, target) * FEATURE_LOSS_WEIGHT
+    feature_loss = 0 
 
     total_loss =  valid_l1_loss \
                     + hole_l1_loss \
@@ -103,10 +103,21 @@ def eval(step):
     if step % save_every == 0:
         ckpt_folder = os.path.join(training_dir, "ckpt")
         os.makedirs(ckpt_folder, exist_ok= True)
-        torch.save(model_gen.state_dict(), os.path.join(ckpt_folder, f"ckpt_gen_{str(step)}.pt") )
+        path_backup_gen = os.path.join(ckpt_folder, "ckpt_gen_backup.pt")
+        path_lastest_gen = os.path.join(ckpt_folder, "ckpt_gen_lastest.pt")
+        os.system(f"mv {path_lastest_gen} {path_backup_gen}") 
+        torch.save(model_gen.state_dict(), path_lastest_gen)
         model_disc.eval() 
-        torch.save(model_disc.state_dict(), os.path.join(ckpt_folder, f"ckpt_dis_{str(step)}.pt"))
+
+        path_backup_disc = os.path.join(ckpt_folder, "ckpt_dis_backup.pt")
+        path_lastest_disc = os.path.join(ckpt_folder, "ckpt_dis_lastest.pt")
+        os.system(f"mv {path_lastest_disc} {path_backup_disc}") 
+        torch.save(model_disc.state_dict(), path_lastest_disc)
+        
         model_disc.train()
+        with open(os.path.join(ckpt_folder, "infor_ckpt.txt"), 'a') as file: 
+            file.write(str(step) + "\n")
+        file.close() 
         # mlflow.log_artifact(os.path.join(ckpt_folder, f"ckpt_{str(step)}.pt"), "checkpoint")
 
     for i, batch in enumerate(val_loader):
@@ -138,7 +149,8 @@ def eval(step):
     model_gen.train()
 
 def train():
-    step = 0
+
+    step = START_STEP 
     for epoch in range (0, epoches) :
 
         avg_total_loss = 0
@@ -208,7 +220,7 @@ def train():
             avg_disc_loss += disc_loss.detach().cpu().numpy()
             avg_real_loss += real_score.detach().cpu().numpy()
             avg_fake_loss += fake_score.detach().cpu().numpy()
-            avg_feature_loss += feature_loss.detach().cpu().numpy() 
+            # avg_feature_loss += feature_loss.detach().cpu().numpy() 
             i3 = time.time()
             if step % print_every == 0 and step > 1:
                 print('-'*50)
@@ -302,10 +314,10 @@ if __name__ == '__main__':
     # MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "training from scratch v2",
+    run = mlflow.start_run(run_name= "Change loss weight",
                            run_id=None,
                            experiment_id= experiment.experiment_id, 
-                           description= "Add feature loss")
+                           description= "change loss weight hold from 1 -> 3, percep comp tu 1e-4 -> 0.01")
 
     metrics = {
 
@@ -313,9 +325,9 @@ if __name__ == '__main__':
 
 
     # Config
-    valid_every = 500
+    valid_every = 1000
     print_every = 10
-    save_every = 5000
+    save_every = 2000
     batch_size = 2
     lr_gen = 1e-4
     lr_disc = 1e-4
@@ -323,11 +335,12 @@ if __name__ == '__main__':
     warmup_length = 0 # 50k iter 
     epoches = 10000
     num_workers = 2
+    START_STEP = 917000
     train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
     val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained_gen = "ckpt/hyper_graph_custom_pretrained_resnet.pt"
-    pretrained_disc = None
+    pretrained_gen = "experiments/ckpt/ckpt_gen_lastest.pt"
+    pretrained_disc = "experiments/ckpt/ckpt_dis_lastest.pt"
 
     params_mlflow = {
         "batch_size": batch_size, 
@@ -340,19 +353,34 @@ if __name__ == '__main__':
         'val_gt_folder': val_gt_folder,
         'train_dir': training_dir, 
         'pretrained_gen': pretrained_gen,
-        'pretrained_disc': pretrained_disc
+        'pretrained_disc': pretrained_disc,
+        'START_STEP': START_STEP,
     }
 
     mlflow.log_params(params_mlflow)
     # pretrained = None
 
     VALID_LOSS_WEIGHT = 0.2
-    HOLE_LOSS_WEIGHT = 1.0
+    HOLE_LOSS_WEIGHT = 3.0
     EDGE_LOSS_WEIGHT = 0.05
     GAN_LOSS_WEIGHT = 0.002
     PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0001
-    PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0001
+    PERCEPTUAL_LOSS_COMP_WEIGHT = 0.01
     FEATURE_LOSS_WEIGHT = 0.1 
+
+    params_loss_weight = {
+        'VALID_LOSS_WEIGHT':VALID_LOSS_WEIGHT, 
+        'HOLE_LOSS_WEIGHT': HOLE_LOSS_WEIGHT, 
+        'EDGE_LOSS_WEIGHT': EDGE_LOSS_WEIGHT, 
+        'GAN_LOSS_WEIGHT': GAN_LOSS_WEIGHT,
+        'PERCEPTUAL_LOSS_OUT_WEIGHT': PERCEPTUAL_LOSS_OUT_WEIGHT, 
+        'PERCEPTUAL_LOSS_COMP_WEIGHT': PERCEPTUAL_LOSS_COMP_WEIGHT,
+        'FEATURE_LOSS_WEIGHT': FEATURE_LOSS_WEIGHT
+    }
+
+    mlflow.log_params(params_loss_weight) 
+
+
     # PERCEPTUAL_LOSS_COARSE_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0
@@ -412,7 +440,7 @@ if __name__ == '__main__':
 
     # Optimizer & Scheduler
 
-    # params_gen = [p for name, p in model_gen.named_parameters()]
+    params_gen = [p for name, p in model_gen.named_parameters()]
     params_gen = [] 
     for name, p in model_gen.named_parameters():
         if p.requires_grad: 

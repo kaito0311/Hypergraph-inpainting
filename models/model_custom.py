@@ -140,7 +140,6 @@ class CoarseModelDoubleResnet(torch.nn.Module):
 
         ls_feature_map_image = list(output_embed_image[1:]) # shape (batch_size, channels, height, width)
         ls_feature_map_mask = list(output_embed_mask[1:]) 
-        del output_embed_image, output_embed_mask
         skip_layer = [] 
         x_return = None 
         # Fuse feature maps imgage and feature map mask together to create output of encoder

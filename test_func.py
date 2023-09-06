@@ -5,19 +5,24 @@ from models.backbones.iresnet import iresnet160, iresnet160_wo_fc, iresnet160_ga
 import torch 
 import torchvision
 from collections import OrderedDict
+import os  
+'''=== CHECK SAVE BACKUP FILE '''
+
+os.system("mv lastest.pt backup.pt")
+
 
 '''===  FEATURE LOSS VGG16'''
 
-dummy_input1 = torch.randn(2, 3, 256, 256)
-dummy_input2 = torch.randn(2, 3, 256, 256)
+# dummy_input1 = torch.randn(2, 3, 256, 256)
+# dummy_input2 = torch.randn(2, 3, 256, 256)
 
-vgg16 = torchvision.models.vgg16(pretrained=True) 
-vgg16.eval() 
-feature1 = vgg16(dummy_input1)
-feature2 = vgg16(dummy_input2)
-print(feature1.shape)
-loss = torch.nn.functional.mse_loss(feature1, feature2)
-print(loss)
+# vgg16 = torchvision.models.vgg16(pretrained=True) 
+# vgg16.eval() 
+# feature1 = vgg16(dummy_input1)
+# feature2 = vgg16(dummy_input2)
+# print(feature1.shape)
+# loss = torch.nn.functional.mse_loss(feature1, feature2)
+# print(loss)
 
 
 '''=== CHECK FREEZE BACKBONE ====='''
