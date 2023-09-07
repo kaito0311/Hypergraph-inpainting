@@ -30,7 +30,7 @@ class CoarseModelDoubleResnet(torch.nn.Module):
         self.env_image_conv = nn.ModuleList() 
         self.env_mask_conv = nn.ModuleList() 
         self.list_gate_operator : list[GatedConvolutionOperator] = nn.ModuleList() 
-        self.env_fuse_convs: list[GatedBlock] = nn.ModuleList() # 
+        self.env_fuse_convs: nn.ModuleList[GatedBlock] = nn.ModuleList() # 
         # TM-TODO: ADD gate convolution for extra downsample 
         self.extra_env_conv = nn.ModuleList() # both image + mask fuse 
         

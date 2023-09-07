@@ -2,7 +2,7 @@
 [x] Ghep encoder 
 [x] Bỏ phần hyper-graph 
 [ ] Thêm loss feature bằng cách cho ảnh đã khôi phục với ảnh label đi qua encoder ghép 
-[ ] train thu
+[x] train thu
 
 
 **Original 

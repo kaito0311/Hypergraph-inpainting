@@ -311,13 +311,13 @@ def train():
 
 if __name__ == '__main__':
 
-    # MLFlow
+    # TM-NOTE: MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "Change loss weight",
-                           run_id=None,
+    run = mlflow.start_run(run_name= "Change loss weight, change lr",
+                           run_id= None,
                            experiment_id= experiment.experiment_id, 
-                           description= "change loss weight hold from 1 -> 3, percep comp tu 1e-4 -> 0.01")
+                           description= "Change coefficient for hold loss, freeze decoder")
 
     metrics = {
 
@@ -335,12 +335,12 @@ if __name__ == '__main__':
     warmup_length = 0 # 50k iter 
     epoches = 10000
     num_workers = 2
-    START_STEP = 917000
+    START_STEP = 960000
     train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
     val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained_gen = "experiments/ckpt/ckpt_gen_lastest.pt"
-    pretrained_disc = "experiments/ckpt/ckpt_dis_lastest.pt"
+    pretrained_gen = "mlruns/173234133087930620/31ee172a085846459d426d0528786210/artifacts/ckpt_gen_lastest_960k.pt"
+    pretrained_disc = "mlruns/173234133087930620/31ee172a085846459d426d0528786210/artifacts/ckpt_dis_lastest_960k.pt"
 
     params_mlflow = {
         "batch_size": batch_size, 
@@ -406,8 +406,43 @@ if __name__ == '__main__':
     # model_disc = VGGStyleDiscriminator(num_in_ch = 3, num_feat = 16)
     model_gen.to('cuda')
     model_disc.to('cuda')
+
+
+    # Freeze
+
+    # Num parameter: 156M
     model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
     model_gen.refine_model.env_image_conv[0].requires_grad_(False)
+
+    # # Num parameter: 129M
+    # model_gen.coarse_model.dec_convs.requires_grad_(False)
+    # model_gen.refine_model.dec_convs.requires_grad_(False)
+   
+    # # Num parameter: 47M
+    # model_gen.coarse_model.extra_env_conv.requires_grad_(False)
+    # model_gen.refine_model.extra_env_conv.requires_grad_(False)
+
+    # Num parameter: 73K
+    model_gen.coarse_model.last_dec.requires_grad_(False)
+    model_gen.refine_model.last_dec.requires_grad_(False)
+    
+    # Num parameter: 6K :)) 
+    model_gen.coarse_model.coarse_out.requires_grad_(False)
+    model_gen.refine_model.coarse_out.requires_grad_(False)
+    
+    # Num parameter: 70M
+    model_gen.coarse_model.mid_convs.requires_grad_(False)
+    model_gen.refine_model.mid_convs.requires_grad_(False)
+    
+    # Num parameter: 12M
+    model_gen.coarse_model.env_fuse_convs.requires_grad_(False)
+    model_gen.refine_model.env_fuse_convs.requires_grad_(False)
+
+    # Num parameter: 22M 
+    model_gen.coarse_model.env_mask_conv.requires_grad_(False) 
+    model_gen.refine_model.env_mask_conv.requires_grad_(False) 
+
+
     num_parameter = 0 
     for p in model_gen.parameters(): 
         if p.requires_grad: 
