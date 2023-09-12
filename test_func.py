@@ -8,8 +8,17 @@ from collections import OrderedDict
 import os  
 '''=== CHECK SAVE BACKUP FILE '''
 
-os.system("mv lastest.pt backup.pt")
+a = torch.nn.Conv2d(
+    in_channels= 3, 
+    out_channels= 3, 
+    kernel_size= 3, 
+    stride= 1, 
+    padding= 1
+)
 
+input_dummy = torch.randn(4, 3, 256, 256)
+output = a(input_dummy)
+print(output.shape)
 
 '''===  FEATURE LOSS VGG16'''
 

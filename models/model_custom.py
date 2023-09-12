@@ -29,7 +29,7 @@ class CoarseModelDoubleResnet(torch.nn.Module):
 
         self.env_image_conv = nn.ModuleList() 
         self.env_mask_conv = nn.ModuleList() 
-        self.list_gate_operator : list[GatedConvolutionOperator] = nn.ModuleList() 
+        self.list_gate_operator : nn.ModuleList[GatedConvolutionOperator] = nn.ModuleList() 
         self.env_fuse_convs: nn.ModuleList[GatedBlock] = nn.ModuleList() # 
         # TM-TODO: ADD gate convolution for extra downsample 
         self.extra_env_conv = nn.ModuleList() # both image + mask fuse 
@@ -129,8 +129,6 @@ class CoarseModelDoubleResnet(torch.nn.Module):
 
         if mask.shape[1] != 3: 
             mask = mask.repeat(1, 3,1,1)
-
-
         
         # Encoder 
 
@@ -299,6 +297,14 @@ class HyperGraphModelCustom(torch.nn.Module):
         # self.refine_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
         self.coarse_model = CoarseModelDoubleResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
         self.refine_model = CoarseModelDoubleResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
+        self.smooth_conv = torch.nn.Conv2d(
+            in_channels= 3, 
+            out_channels= 3, 
+            kernel_size= 3, 
+            stride= 1, 
+            padding= 1
+        )
+    
     
     def forward(self, img, mask): 
         # mask: 0 - original image, 1.0 - masked
@@ -309,4 +315,7 @@ class HyperGraphModelCustom(torch.nn.Module):
         inp_refine = out_coarse * mask_rp + img * (1.0 - mask_rp)
         out_refine = self.refine_model(inp_refine, mask)
         out_refine = torch.clamp(out_refine, min = 0.0, max = 1.0)
+        inp_smooth = out_refine * mask_rp + img * (1.0 - mask_rp) 
+        out_smooth = self.smooth_conv(inp_smooth)
+        
         return out_coarse, out_refine
