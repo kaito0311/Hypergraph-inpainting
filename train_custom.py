@@ -75,6 +75,10 @@ def generator_loss(disc_generated_output, gen_output_coarse, gen_output_refine, 
     edge_loss = EDGE_LOSS_WEIGHT * (edge_out + edge_coarse)
     # edge_loss = 0
 
+    # Edge loss combine 
+    output_combine_refine_target = (1 - mask) * target + mask * gen_output_refine 
+    edge_loss_combine = EDGE_LOSS_WEIGHT_COMBINE * sobel_loss_obj(output_combine_refine_target, target)
+
     # Feature loss 
     # vgg16 = torchvision.models.vgg16(pretrained=True).to("cuda") 
     # vgg16.eval() 
@@ -89,7 +93,8 @@ def generator_loss(disc_generated_output, gen_output_coarse, gen_output_refine, 
                     + perceptual_loss_out \
                     + perceptual_loss_comp \
                     + edge_loss \
-                    + feature_loss 
+                    + feature_loss \
+                
     
     return total_loss, valid_l1_loss, hole_l1_loss, edge_loss, gan_loss, perceptual_loss_out, perceptual_loss_comp, feature_loss
 
@@ -311,13 +316,15 @@ def train():
 
 if __name__ == '__main__':
 
+
     # TM-NOTE: MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "Change loss weight, change lr",
+    run = mlflow.start_run(run_name= "Unfreeze backbone for coarse + refine model",
                            run_id= None,
                            experiment_id= experiment.experiment_id, 
-                           description= "Change coefficient for hold loss, freeze decoder")
+                           description= "Change coefficient for hold loss, freeze decoder, change loss coefficient of valid l1\
+                                        Increase lr of disc")
 
     metrics = {
 
@@ -328,19 +335,19 @@ if __name__ == '__main__':
     valid_every = 1000
     print_every = 10
     save_every = 2000
-    batch_size = 2
-    lr_gen = 1e-4
-    lr_disc = 1e-4
+    batch_size = 1
+    lr_gen = 1e-7
+    lr_disc = 1e-6
     wd = 0.01
     warmup_length = 0 # 50k iter 
     epoches = 10000
     num_workers = 2
-    START_STEP = 960000
+    START_STEP = 939000
     train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
     val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained_gen = "mlruns/173234133087930620/31ee172a085846459d426d0528786210/artifacts/ckpt_gen_lastest_960k.pt"
-    pretrained_disc = "mlruns/173234133087930620/31ee172a085846459d426d0528786210/artifacts/ckpt_dis_lastest_960k.pt"
+    pretrained_gen = "experiments/ckpt/ckpt_gen_lastest.pt"
+    pretrained_disc = "experiments/ckpt/ckpt_dis_lastest.pt"
 
     params_mlflow = {
         "batch_size": batch_size, 
@@ -360,9 +367,10 @@ if __name__ == '__main__':
     mlflow.log_params(params_mlflow)
     # pretrained = None
 
-    VALID_LOSS_WEIGHT = 0.2
+    VALID_LOSS_WEIGHT = 1.0
     HOLE_LOSS_WEIGHT = 3.0
     EDGE_LOSS_WEIGHT = 0.05
+    EDGE_LOSS_WEIGHT_COMBINE = 0.05
     GAN_LOSS_WEIGHT = 0.002
     PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0001
     PERCEPTUAL_LOSS_COMP_WEIGHT = 0.01
@@ -410,37 +418,37 @@ if __name__ == '__main__':
 
     # Freeze
 
-    # Num parameter: 156M
+    # # # Num parameter: 156M
     model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
-    model_gen.refine_model.env_image_conv[0].requires_grad_(False)
+    # model_gen.refine_model.env_image_conv[0].requires_grad_(False)
 
     # # Num parameter: 129M
-    # model_gen.coarse_model.dec_convs.requires_grad_(False)
+    model_gen.coarse_model.dec_convs.requires_grad_(False)
     # model_gen.refine_model.dec_convs.requires_grad_(False)
    
     # # Num parameter: 47M
-    # model_gen.coarse_model.extra_env_conv.requires_grad_(False)
+    model_gen.coarse_model.extra_env_conv.requires_grad_(False)
     # model_gen.refine_model.extra_env_conv.requires_grad_(False)
 
-    # Num parameter: 73K
+    # # Num parameter: 73K
     model_gen.coarse_model.last_dec.requires_grad_(False)
-    model_gen.refine_model.last_dec.requires_grad_(False)
+    # model_gen.refine_model.last_dec.requires_grad_(False)
     
-    # Num parameter: 6K :)) 
+    # # Num parameter: 6K :)) 
     model_gen.coarse_model.coarse_out.requires_grad_(False)
-    model_gen.refine_model.coarse_out.requires_grad_(False)
+    # model_gen.refine_model.coarse_out.requires_grad_(False)
     
-    # Num parameter: 70M
+    # # Num parameter: 70M
     model_gen.coarse_model.mid_convs.requires_grad_(False)
-    model_gen.refine_model.mid_convs.requires_grad_(False)
+    # model_gen.refine_model.mid_convs.requires_grad_(False)
     
-    # Num parameter: 12M
+    # # Num parameter: 12M
     model_gen.coarse_model.env_fuse_convs.requires_grad_(False)
-    model_gen.refine_model.env_fuse_convs.requires_grad_(False)
+    # model_gen.refine_model.env_fuse_convs.requires_grad_(False)
 
-    # Num parameter: 22M 
+    # # Num parameter: 22M 
     model_gen.coarse_model.env_mask_conv.requires_grad_(False) 
-    model_gen.refine_model.env_mask_conv.requires_grad_(False) 
+    # model_gen.refine_model.env_mask_conv.requires_grad_(False) 
 
 
     num_parameter = 0 
@@ -475,7 +483,7 @@ if __name__ == '__main__':
 
     # Optimizer & Scheduler
 
-    params_gen = [p for name, p in model_gen.named_parameters()]
+    # params_gen = [p for name, p in model_gen.named_parameters()]
     params_gen = [] 
     for name, p in model_gen.named_parameters():
         if p.requires_grad: 

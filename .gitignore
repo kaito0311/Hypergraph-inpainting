@@ -6,3 +6,4 @@ experiments/
 ckpt/
 mlruns/
 venv/
+backup/
