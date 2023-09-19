@@ -181,9 +181,6 @@ class CoarseModel(torch.nn.Module):
         x = self.coarse_out(x)
         return x
 
-
-
-
 class RefineModel(torch.nn.Module):
     def __init__(self, input_size = 256, channels = 64, downsample = 4):
         super().__init__()

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 # from .model import * 
 from models.gc_layer import GatedConvolution, GatedDeConvolution, GatedConvolutionOperator
-from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, iresnet18_wo_fc
+from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, iresnet18_wo_fc, IResNet_wo_fc
 from .model import GatedBlock, GatedDeBlock
 
 
@@ -27,9 +27,9 @@ class CoarseModelDoubleResnet(torch.nn.Module):
 
         assert downsample >= 4, 'Resnet have 4 downsample layer'
 
-        self.env_image_conv = nn.ModuleList() 
+        self.env_image_conv : nn.ModuleList[IResNet_wo_fc] = nn.ModuleList() 
         self.env_mask_conv = nn.ModuleList() 
-        self.list_gate_operator : nn.ModuleList[GatedConvolutionOperator] = nn.ModuleList() 
+        self.list_gate_operator : list[GatedConvolutionOperator] = nn.ModuleList() 
         self.env_fuse_convs: nn.ModuleList[GatedBlock] = nn.ModuleList() # 
         # TM-TODO: ADD gate convolution for extra downsample 
         self.extra_env_conv = nn.ModuleList() # both image + mask fuse 
@@ -45,7 +45,7 @@ class CoarseModelDoubleResnet(torch.nn.Module):
         for i in range(downsample): 
             self.list_gate_operator.append(
                 GatedConvolutionOperator(
-                    activation= 'LeakyReLU',
+                    activation= 'ELU',
                 )
             )
             if i < 4: # only for output of resnet layer 
@@ -85,7 +85,7 @@ class CoarseModelDoubleResnet(torch.nn.Module):
                                 stride=1,
                                 dilation=2,
                                 padding='same',
-                                activation='LeakyReLU')
+                                activation='ELU')
                 )
         
         # Decoder Network for Coarse Network
@@ -112,9 +112,15 @@ class CoarseModelDoubleResnet(torch.nn.Module):
                                 stride=1,
                                 dilation=1,
                                 padding='same',
-                                activation='LeakyReLU')
-
-        self.coarse_out = GatedConvolution(in_channels=channels,
+                                activation='ELU')
+        self.coarse_smooth = GatedConvolution(in_channels=channels,
+                                out_channels=3,
+                                kernel_size=3,
+                                stride=1,
+                                dilation=1,
+                                padding='same',
+                                activation=None)
+        self.coarse_out = GatedConvolution(in_channels=6,
                                 out_channels=3,
                                 kernel_size=3,
                                 stride=1,
@@ -129,7 +135,7 @@ class CoarseModelDoubleResnet(torch.nn.Module):
 
         if mask.shape[1] != 3: 
             mask = mask.repeat(1, 3,1,1)
-        
+
         # Encoder 
 
         # Take feature maps by using resnet backbone
@@ -174,10 +180,15 @@ class CoarseModelDoubleResnet(torch.nn.Module):
             x_return = self.dec_convs[i](x_return)
             # print("x output decode: ", x_return.shape)
         x_return = self.last_dec(x_return)
+        # print("x after last dec: ", x_return.shape)
+        x_no_smooth = self.coarse_smooth(x_return)
+        # print("x after smooth: ", x_return.shape)
+        x_return = torch.cat([x_no_smooth, image], dim=1) 
+        # print("x after concat: ", x_return.shape)
         x_return = self.coarse_out(x_return)
         # print("final x: ", x_return.shape)
         
-        return x_return
+        return x_no_smooth, x_return
     
 
 class CoarseModelResnet(torch.nn.Module): 
@@ -297,25 +308,16 @@ class HyperGraphModelCustom(torch.nn.Module):
         # self.refine_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
         self.coarse_model = CoarseModelDoubleResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
         self.refine_model = CoarseModelDoubleResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
-        self.smooth_conv = torch.nn.Conv2d(
-            in_channels= 3, 
-            out_channels= 3, 
-            kernel_size= 3, 
-            stride= 1, 
-            padding= 1
-        )
-    
     
     def forward(self, img, mask): 
         # mask: 0 - original image, 1.0 - masked
-        out_coarse = self.coarse_model(img, mask)
+        # out_coarse, out_coarse_smooth = self.coarse_model(img, mask)
+        out_coarse_no_smooth, out_coarse = self.coarse_model(img, mask)
         out_coarse = torch.clamp(out_coarse, min = 0.0, max = 1.0)
         b, _, h, w = mask.size()
         mask_rp = mask.repeat(1, 3, 1, 1)
         inp_refine = out_coarse * mask_rp + img * (1.0 - mask_rp)
-        out_refine = self.refine_model(inp_refine, mask)
+        # out_refine, out_refine_smooth = self.refine_model(inp_refine, mask)
+        out_refine_no_smooth, out_refine = self.refine_model(inp_refine, mask)
         out_refine = torch.clamp(out_refine, min = 0.0, max = 1.0)
-        inp_smooth = out_refine * mask_rp + img * (1.0 - mask_rp) 
-        out_smooth = self.smooth_conv(inp_smooth)
-        
         return out_coarse, out_refine

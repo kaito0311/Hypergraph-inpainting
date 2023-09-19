@@ -5,20 +5,97 @@ from models.backbones.iresnet import iresnet160, iresnet160_wo_fc, iresnet160_ga
 import torch 
 import torchvision
 from collections import OrderedDict
-import os  
+import os
+import cv2 
+
+'''Take all image test '''
+path_dir = "experiments/visualize/1584000"
+start = 0
+for i in range(start, len(os.listdir(path_dir)), 15):
+    ls_image = []
+    for image_name in os.listdir(path_dir)[start: start+15]:
+        image = cv2.imread(os.path.join(path_dir, image_name))
+        assert image is not None 
+        ls_image.append(image)
+
+    image_all = np.concatenate(ls_image, axis=0)
+
+    image_all = cv2.resize(image_all, (1536, 2048))
+    print(image_all.shape)
+
+    cv2.imwrite(f"image_all{start}.png", image_all)
+    start += 15
+
+
+
+
+
+
+# model = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64) 
+# dict_smooth = torch.load("ckpt/hyper_graph_smooth_pretrain.pt")
+# model.load_state_dict(dict_smooth)
+
+
+
+
+'''==== Take parameter pretrain'''
+# dict_no_smooth =torch.load("ckpt/ckpt_gen_916k.pt")
+# dict_smooth = torch.load("ckpt/hyper_graph_smooth.pt")
+
+# for key in dict_no_smooth.keys():
+#     if key not in dict_smooth.keys():
+#         print(key) 
+#     else:
+#         if "coarse_out" in key: 
+#             new_key = str(key).replace("coarse_out","coarse_smooth")
+#             if new_key not in dict_smooth.keys():
+#                 print("new key ", new_key, " not true") 
+#             else:
+#                 dict_smooth[new_key] = dict_no_smooth[key]
+#         else:
+#             if key in dict_smooth.keys():
+#                 dict_smooth[key] = dict_no_smooth[key] 
+#             else:
+#                 print(key, " not in dict smooth")
+
+# torch.save(dict_smooth, 'hyper_graph_smooth_pretrain.pt')
+
+
+
+'''==== create check point '''
+
+# model = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64) 
+# torch.save(model.state_dict(), 'hyper_graph_smooth.pt')
+
+
+'''=== CHECK SMOOTH CONV ==='''
+
+# HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64) 
+
+# coarse_model = CoarseModelDoubleResnet(downsample= 4)
+# coarse_model.to("cuda")
+
+# dummy_image, dummy_mask = torch.randn(1, 3, 256, 256).to("cuda"), torch.randn(1, 1, 256, 256).to("cuda") 
+
+# output = coarse_model(dummy_image, dummy_mask)
+
+# print(output.shape)
+
+
 '''=== CHECK SAVE BACKUP FILE '''
 
-a = torch.nn.Conv2d(
-    in_channels= 3, 
-    out_channels= 3, 
-    kernel_size= 3, 
-    stride= 1, 
-    padding= 1
-)
+# a = torch.nn.Conv2d(
+#     in_channels= 3, 
+#     out_channels= 3, 
+#     kernel_size= 3, 
+#     stride= 1, 
+#     padding= 1
+# )
 
-input_dummy = torch.randn(4, 3, 256, 256)
-output = a(input_dummy)
-print(output.shape)
+# input_dummy = torch.randn(4, 3, 256, 256)
+# output = a(input_dummy)
+# print(output.shape)
+
 
 '''===  FEATURE LOSS VGG16'''
 

@@ -314,11 +314,10 @@ if __name__ == '__main__':
     # TM-NOTE: MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "Unfreeze backbone for coarse + refine model",
+    run = mlflow.start_run(run_name= "Change activation to ELU",
                            run_id= None,
                            experiment_id= experiment.experiment_id, 
-                           description= "Change coefficient for hold loss, freeze decoder, change loss coefficient of valid l1\
-                                        Increase lr of disc")
+                           description= "")
 
     metrics = {
 
@@ -331,17 +330,17 @@ if __name__ == '__main__':
     save_every = 2000
     batch_size = 1
     lr_gen = 1e-7
-    lr_disc = 1e-6
+    lr_disc = 1e-7
     wd = 0.01
     warmup_length = 0 # 50k iter 
     epoches = 10000
     num_workers = 2
-    START_STEP = 916000
+    START_STEP = 1300000
     train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
     val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained_gen = "ckpt/ckpt_gen_916k.pt"
-    pretrained_disc = "ckpt/ckpt_dis_916k.pt"
+    pretrained_gen = "experiments/ckpt/ckpt_gen_lastest.pt"
+    pretrained_disc = "experiments/ckpt/ckpt_dis_lastest.pt"
 
     params_mlflow = {
         "batch_size": batch_size, 
@@ -412,36 +411,41 @@ if __name__ == '__main__':
     # Freeze
 
     # # # Num parameter: 156M
-    model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
-    # model_gen.refine_model.env_image_conv[0].requires_grad_(False)
+    # model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
+    # model_gen.coarse_model.env_image_conv[0].conv1.requires_grad_(True)
+    model_gen.refine_model.env_image_conv[0].requires_grad_(False)
 
-    # # Num parameter: 129M
-    model_gen.coarse_model.dec_convs.requires_grad_(False)
+    # # # Num parameter: 129M
+    # model_gen.coarse_model.dec_convs.requires_grad_(False)
     # model_gen.refine_model.dec_convs.requires_grad_(False)
    
-    # # Num parameter: 47M
-    model_gen.coarse_model.extra_env_conv.requires_grad_(False)
+    # # # Num parameter: 47M
+    # model_gen.coarse_model.extra_env_conv.requires_grad_(False)
     # model_gen.refine_model.extra_env_conv.requires_grad_(False)
 
-    # # Num parameter: 73K
-    model_gen.coarse_model.last_dec.requires_grad_(False)
+    # # # Num parameter: 73K
+    # model_gen.coarse_model.last_dec.requires_grad_(False)
     # model_gen.refine_model.last_dec.requires_grad_(False)
     
-    # # Num parameter: 6K :)) 
-    model_gen.coarse_model.coarse_out.requires_grad_(False)
-    # model_gen.refine_model.coarse_out.requires_grad_(False)
+    # # # Num parameter: 6K :)) 
+    # model_gen.coarse_model.coarse_smooth.requires_grad_(False)
+    # model_gen.refine_model.coarse_smooth.requires_grad_(False)
     
-    # # Num parameter: 70M
-    model_gen.coarse_model.mid_convs.requires_grad_(False)
+    # # # Num parameter: 70M
+    # model_gen.coarse_model.mid_convs.requires_grad_(False)
     # model_gen.refine_model.mid_convs.requires_grad_(False)
     
-    # # Num parameter: 12M
-    model_gen.coarse_model.env_fuse_convs.requires_grad_(False)
+    # # # Num parameter: 12M
+    # model_gen.coarse_model.env_fuse_convs.requires_grad_(False)
     # model_gen.refine_model.env_fuse_convs.requires_grad_(False)
 
-    # # Num parameter: 22M 
-    model_gen.coarse_model.env_mask_conv.requires_grad_(False) 
+    # # # Num parameter: 22M 
+    # model_gen.coarse_model.env_mask_conv.requires_grad_(False) 
     # model_gen.refine_model.env_mask_conv.requires_grad_(False) 
+
+    # # Num parameter: 660
+    # model_gen.coarse_model.coarse_smooth.requires_grad_(False)
+    # model_gen.refine_model.coarse_smooth.requires_grad_(False)
 
 
     num_parameter = 0 
