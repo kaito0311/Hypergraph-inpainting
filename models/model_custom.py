@@ -318,10 +318,12 @@ class HyperGraphModelCustom(torch.nn.Module):
         # out_coarse, out_coarse_smooth = self.coarse_model(img, mask)
         out_coarse_no_smooth, out_coarse = self.coarse_model(img, mask)
         out_coarse = torch.clamp(out_coarse, min = 0.0, max = 1.0)
+        
         b, _, h, w = mask.size()
         mask_rp = mask.repeat(1, 3, 1, 1)
         inp_refine = out_coarse * mask_rp + img * (1.0 - mask_rp)
-        # out_refine, out_refine_smooth = self.refine_model(inp_refine, mask)
-        out_refine_no_smooth, out_refine = self.refine_model(inp_refine, mask)
+        inp_refine = torch.cat([inp_refine, mask], dim = 1) # 4 channels 
+        out_refine = self.refine_model(inp_refine)
         out_refine = torch.clamp(out_refine, min = 0.0, max = 1.0)
+        
         return out_coarse, out_refine

@@ -314,7 +314,7 @@ if __name__ == '__main__':
     # TM-NOTE: MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "Change activation to ELU",
+    run = mlflow.start_run(run_name= "Change backbone refine to gate_block",
                            run_id= None,
                            experiment_id= experiment.experiment_id, 
                            description= "")
@@ -328,19 +328,19 @@ if __name__ == '__main__':
     valid_every = 1000
     print_every = 10
     save_every = 2000
-    batch_size = 1
-    lr_gen = 1e-7
-    lr_disc = 1e-7
+    batch_size = 2
+    lr_gen = 1e-4
+    lr_disc = 1e-4
     wd = 0.01
     warmup_length = 0 # 50k iter 
     epoches = 10000
     num_workers = 2
-    START_STEP = 1300000
+    START_STEP = 0
     train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
     val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained_gen = "experiments/ckpt/ckpt_gen_lastest.pt"
-    pretrained_disc = "experiments/ckpt/ckpt_dis_lastest.pt"
+    pretrained_gen = None
+    pretrained_disc = None
 
     params_mlflow = {
         "batch_size": batch_size, 
@@ -360,7 +360,7 @@ if __name__ == '__main__':
     mlflow.log_params(params_mlflow)
     # pretrained = None
 
-    VALID_LOSS_WEIGHT = 1.0
+    VALID_LOSS_WEIGHT = 0.5
     HOLE_LOSS_WEIGHT = 3.0
     EDGE_LOSS_WEIGHT = 0.05
     GAN_LOSS_WEIGHT = 0.002
@@ -385,7 +385,7 @@ if __name__ == '__main__':
     # PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0
     # Define model 
-    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 6, channels = 64)
+    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 4, channels = 64)
     model_disc = Discriminator(input_size = 256, discriminator_downsample = 6, channels = 64)
 
     if pretrained_gen is not None: 
@@ -411,9 +411,9 @@ if __name__ == '__main__':
     # Freeze
 
     # # # Num parameter: 156M
-    # model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
+    model_gen.coarse_model.env_image_conv[0].requires_grad_(False)
     # model_gen.coarse_model.env_image_conv[0].conv1.requires_grad_(True)
-    model_gen.refine_model.env_image_conv[0].requires_grad_(False)
+    # model_gen.refine_model.env_image_conv[0].requires_grad_(False)
 
     # # # Num parameter: 129M
     # model_gen.coarse_model.dec_convs.requires_grad_(False)

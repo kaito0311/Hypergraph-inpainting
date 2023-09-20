@@ -117,7 +117,7 @@ class CoarseModel(torch.nn.Module):
                                 stride=1,
                                 dilation=2,
                                 padding='same',
-                                activation='LeakyReLU')
+                                activation='ELU')
                 )
 
         # Decoder Network for Coarse Network
@@ -146,7 +146,7 @@ class CoarseModel(torch.nn.Module):
                                 stride=1,
                                 dilation=1,
                                 padding='same',
-                                activation='LeakyReLU')
+                                activation='ELU')
 
         self.coarse_out = GatedConvolution(in_channels=channels,
                                 out_channels=3,
