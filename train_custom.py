@@ -385,7 +385,7 @@ if __name__ == '__main__':
     # PERCEPTUAL_LOSS_OUT_WEIGHT = 0.0
     # PERCEPTUAL_LOSS_COMP_WEIGHT = 0.0
     # Define model 
-    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 5, channels = 64)
+    model_gen = HyperGraphModelCustom(input_size = 256, coarse_downsample = 4, refine_downsample = 6, channels = 64)
     model_disc = Discriminator(input_size = 256, discriminator_downsample = 6, channels = 64)
 
     if pretrained_gen is not None: 

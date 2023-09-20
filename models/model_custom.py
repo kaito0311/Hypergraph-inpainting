@@ -6,7 +6,7 @@ import torch.nn.functional as F
 # from .model import * 
 from models.gc_layer import GatedConvolution, GatedDeConvolution, GatedConvolutionOperator
 from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, iresnet18_wo_fc, IResNet_wo_fc
-from .model import GatedBlock, GatedDeBlock
+from .model import GatedBlock, GatedDeBlock, CoarseModel
 
 
 class CoarseModelDoubleResnet(torch.nn.Module): 
@@ -307,8 +307,12 @@ class HyperGraphModelCustom(torch.nn.Module):
         # self.coarse_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
         # self.refine_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
         self.coarse_model = CoarseModelDoubleResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
-        self.refine_model = CoarseModelDoubleResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
-    
+        # self.refine_model = CoarseModelDoubleResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
+        self.refine_model = CoarseModel(
+            input_size= input_size,
+            channels= channels,
+            downsample= refine_downsample,
+        )
     def forward(self, img, mask): 
         # mask: 0 - original image, 1.0 - masked
         # out_coarse, out_coarse_smooth = self.coarse_model(img, mask)
