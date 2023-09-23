@@ -4,3 +4,6 @@ data/
 pretrained/
 experiments/
 ckpt/
+mlruns/
+venv/
+backup/

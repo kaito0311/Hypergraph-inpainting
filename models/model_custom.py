@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 # from .model import * 
 from models.gc_layer import GatedConvolution, GatedDeConvolution
-from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet
+from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, IResNetGateBlock
 from .model import GatedBlock, GatedDeBlock
 
 class CoarseModelResnet(torch.nn.Module): 
@@ -18,7 +18,7 @@ class CoarseModelResnet(torch.nn.Module):
         # Encoder for Coarse Netowork 
         # self.iresnet160_gate = iresnet160_gate()
         # TM-TODO: Add load pretrained 
-        self.env_convs = nn.ModuleList() 
+        self.env_convs : nn.ModuleList[IResNetGateBlock] = nn.ModuleList() 
 
         in_channels = channels 
 
@@ -115,13 +115,12 @@ class CoarseModelResnet(torch.nn.Module):
 
         return x_return
              
-
             
 class HyperGraphModelCustom(torch.nn.Module):
     def __init__(self,input_size=256, coarse_downsample = 5, refine_downsample= 6, channels = 64, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.coarse_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
+        self.coarse_model : CoarseModelResnet = CoarseModelResnet(input_size= input_size, channels= channels, downsample= coarse_downsample)
         self.refine_model = CoarseModelResnet(input_size= input_size, channels= channels, downsample= refine_downsample)
     
     def forward(self, img, mask): 
