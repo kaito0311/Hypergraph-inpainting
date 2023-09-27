@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 # from .model import * 
 from models.gc_layer import GatedConvolution, GatedDeConvolution
-from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, IResNetGateBlock
+from .backbones.iresnet import iresnet160_wo_fc, iresnet160_gate, GatedBlockResnet, IResNetGateBlock, make_decoder_layer, ConvBNBlock, iresnet160
 from .model import GatedBlock, GatedDeBlock
 
 class CoarseModelResnet(torch.nn.Module): 
@@ -115,7 +115,52 @@ class CoarseModelResnet(torch.nn.Module):
 
         return x_return
              
-            
+class DecoderIresnet(torch.nn.Module):
+    def __init__(self):
+        super(DecoderIresnet, self).__init__()
+        self.layer1 = make_decoder_layer(inplanes=512, planes=256, n_blocks=8, activation = 'PReLU')
+        self.layer2 = make_decoder_layer(inplanes=256, planes=128, n_blocks=8, activation = 'PReLU')
+        self.layer3 = make_decoder_layer(inplanes=128, planes=64, n_blocks=8, activation = 'PReLU')
+        self.layer4 = make_decoder_layer(inplanes=64, planes=32, n_blocks=8, activation = 'PReLU')
+        self.layer5 = make_decoder_layer(inplanes=32, planes=16, n_blocks=8, activation = 'PReLU')
+        self.last_conv = ConvBNBlock(inplanes = 16, planes = 3, activation = None)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
+        self.tanh = nn.Tanh()
+
+    def forward(self, feat, x_56, x_28, x_14, x_7):
+        x = self.layer1(x_7) # Bx128x7x7
+        x = self.upsample(x) # Bx128x14x14
+        # x = torch.cat((x, x_14), dim=1)
+        x = self.layer2(x) # Bx64x14x14
+        x = self.upsample(x)  # Bx64x28x28
+        # x = torch.cat((x, x_28), dim=1)
+        x = self.layer3(x) # Bx32x28x28
+        x = self.upsample(x) # Bx32x56x56
+        # x = torch.cat((x, x_56), dim=1)
+        x = self.layer4(x) # Bx16x56x56
+        x = self.upsample(x) # Bx16x112x112
+        x = self.layer5(x) # Bx3x112x112
+        x = self.last_conv(x)
+        x = self.tanh(x)
+        return x         
+
+class RefineUnet(torch.nn.Module):
+    def __init__(self, input_size = 112, pretrained = None, *args, **kwargs) -> None:
+        super(RefineUnet, self).__init__()
+
+        self.encoder = iresnet160(pretrained= False, dropout=0)
+        if pretrained is not None: 
+            self.encoder.load_state_dict(torch.load(pretrained))
+        self.decoder = DecoderIresnet() 
+
+    def forward(self, image): 
+        x, x1, x2, x3, x4 = self.encoder(x)
+
+        pass 
+
+
+
+    pass  
 class HyperGraphModelCustom(torch.nn.Module):
     def __init__(self,input_size=256, coarse_downsample = 5, refine_downsample= 6, channels = 64, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

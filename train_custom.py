@@ -314,7 +314,7 @@ if __name__ == '__main__':
     # TM-NOTE: MLFlow
     experiment_name = 'Face_Inpainting'
     experiment = mlflow.set_experiment(experiment_name=experiment_name) 
-    run = mlflow.start_run(run_name= "Change backbone refine to gate_block",
+    run = mlflow.start_run(run_name= "New approach",
                            run_id= None,
                            experiment_id= experiment.experiment_id, 
                            description= "")
@@ -327,20 +327,20 @@ if __name__ == '__main__':
     # Config
     valid_every = 1000
     print_every = 10
-    save_every = 2000
+    save_every = 1000
     batch_size = 2
-    lr_gen = 1e-4
-    lr_disc = 1e-4
+    lr_gen = 1e-5
+    lr_disc = 1e-5
     wd = 0.01
     warmup_length = 0 # 50k iter 
     epoches = 10000
     num_workers = 2
-    START_STEP = 0
+    START_STEP = 158000
     train_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_jpg'
     val_gt_folder = '/home/data2/damnguyen/dataset/StyleGAN_data256_valid'
     training_dir = 'experiments'
-    pretrained_gen = None
-    pretrained_disc = None
+    pretrained_gen = "experiments/ckpt/ckpt_gen_lastest.pt"
+    pretrained_disc = "experiments/ckpt/ckpt_dis_lastest.pt"
 
     params_mlflow = {
         "batch_size": batch_size, 
@@ -360,7 +360,7 @@ if __name__ == '__main__':
     mlflow.log_params(params_mlflow)
     # pretrained = None
 
-    VALID_LOSS_WEIGHT = 0.5
+    VALID_LOSS_WEIGHT = 3.0
     HOLE_LOSS_WEIGHT = 3.0
     EDGE_LOSS_WEIGHT = 0.05
     GAN_LOSS_WEIGHT = 0.002
